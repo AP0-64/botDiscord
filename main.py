@@ -11,6 +11,11 @@ print("Lancement du bot")
 # Initialisation du bot
 bot = discord.Client(intents=discord.Intents.all())
 
+@bot.event
+async def on_ready():
+    """Affiche un message dans la console lorsque le bot est prêt"""
+    print("bot prêt")
+
 token = os.getenv("DISCORD_TOKEN")
 if not token:
     raise RuntimeError("DISCORD_TOKEN manquant dans le fichier .env")
