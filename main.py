@@ -9,10 +9,10 @@ load_dotenv()
 print("Lancement du bot Atlas")
 
 # Initialisation du bot Atlas avec tous les intents activés
-bot = discord.Client(intents=discord.Intents.all())
+atlas = discord.Client(intents=discord.Intents.all())
 
 # Événement déclenché lorsque le bot est prêt
-@bot.event
+@atlas.event
 async def on_ready():
     """Affiche un message dans la console lorsque le bot Atlas est prêt"""
     print("bot Atlas prêt")
@@ -21,4 +21,4 @@ async def on_ready():
 token = os.getenv("DISCORD_TOKEN")
 if not token:
     raise RuntimeError("DISCORD_TOKEN manquant dans le fichier .env")
-bot.run(token)
+atlas.run(token)
