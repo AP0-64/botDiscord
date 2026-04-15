@@ -1,0 +1,7 @@
+{
+    "python.defaultInterpreterPath": "/home/ap0_64/Bureau/botDiscord/.venv/bin/python",
+    "python.terminal.activateEnvironment": true,
+    "python.analysis.extraPaths": [
+        "/home/ap0_64/Bureau/botDiscord/.venv/lib/python3.12/site-packages"
+    ]
+}

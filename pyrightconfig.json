@@ -1,0 +1,15 @@
+{
+    "venvPath": ".",
+    "venv": ".venv",
+    "include": [
+        "main.py"
+    ],
+    "executionEnvironments": [
+        {
+            "root": ".",
+            "extraPaths": [
+                "/home/ap0_64/Bureau/botDiscord/.venv/lib/python3.12/site-packages"
+            ]
+        }
+    ]
+}
