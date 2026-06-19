@@ -2,7 +2,7 @@
     "venvPath": ".",
     "venv": ".venv",
     "include": [
-        "main.py"
+        "."
     ],
     "executionEnvironments": [
         {
