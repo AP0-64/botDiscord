@@ -6,6 +6,12 @@ import discord
 from dotenv import load_dotenv
 
 
+import json
+import time
+from pathlib import Path
+from discord.ext import tasks
+
+
 def run() -> None:
     """Lancer le bot SQ"""
 
@@ -16,21 +22,40 @@ def run() -> None:
 
     botsq = discord.Client(intents=intents)
 
-    poll_line_pattern = re.compile(r"`#(\d+)` \*\*(.*?):\*\* (<t:\d+:F> - <t:\d+:R>)")
+    # \3 garantit que les deux timestamps (F et R) sont bien identiques
+    POLL_LINE_PATTERN = re.compile(r"`#(\d+)` \*\*(.*?):\*\* <t:(\d+):F> - <t:\3:R>")
 
-    poll_options = [
+    POLL_OPTIONS = [
         ("✅", "Can"),
         ("❗", "Can sub"),
         ("❓", "Not sure"),
         ("❌", "Can't"),
     ]
 
-    # État en mémoire : message_id -> emoji -> {user_id: display_name}
+    SCHEDULE_FILE = Path(__file__).parent / "scheduled_polls.json"
+    SECONDS_BEFORE = 24 * 3600  # créer le sondage 24h avant l'event
+
+    # État des votes en mémoire : message_id -> emoji -> {user_id: display_name}
     vote_state: dict[int, dict[str, dict[int, str]]] = {}
+
+    # --- Persistance des sondages en attente de création ---
+
+    def load_schedule() -> list[dict]:
+        if not SCHEDULE_FILE.exists():
+            return []
+        try:
+            return json.loads(SCHEDULE_FILE.read_text())
+        except (json.JSONDecodeError, OSError):
+            return []
+
+    def save_schedule(entries: list[dict]) -> None:
+        SCHEDULE_FILE.write_text(json.dumps(entries, indent=2))
+
+    # --- Construction de l'embed ---
 
     def build_description(time_str: str, state: dict[str, dict[int, str]] | None = None) -> str:
         parts = [time_str]
-        for emoji, label in poll_options:
+        for emoji, label in POLL_OPTIONS:
             if state is None:
                 parts.append(f"{emoji} **{label} (0)**")
             else:
@@ -48,11 +73,10 @@ def run() -> None:
             await message.edit(embed=new_embed)
 
     async def hydrate_votes(message: discord.Message) -> dict[str, dict[int, str]]:
-        """Charge l'état des votes depuis Discord, une seule fois par message (coût ponctuel)."""
         if message.id in vote_state:
             return vote_state[message.id]
 
-        state: dict[str, dict[int, str]] = {emoji: {} for emoji, _ in poll_options}
+        state: dict[str, dict[int, str]] = {emoji: {} for emoji, _ in POLL_OPTIONS}
         for reaction in message.reactions:
             emoji = str(reaction.emoji)
             if emoji in state:
@@ -63,9 +87,25 @@ def run() -> None:
         vote_state[message.id] = state
         return state
 
+    async def create_poll(channel: discord.abc.Messageable, event_id: str, format_type: str, timestamp: str) -> None:
+        """Crée le message de sondage pour un event donné."""
+        time_str = f"<t:{timestamp}:F> - <t:{timestamp}:R>"
+        embed = discord.Embed(
+            title=f"{format_type} (ID: #{event_id})",
+            description=build_description(time_str),
+            color=0x2b2d31
+        )
+        poll_msg = await channel.send(embed=embed)
+        vote_state[poll_msg.id] = {emoji: {} for emoji, _ in POLL_OPTIONS}
+
+        for emoji, _ in POLL_OPTIONS:
+            await poll_msg.add_reaction(emoji)
+
     @botsq.event
     async def on_ready() -> None:
         print("bot SQ prêt")
+        if not check_scheduled_polls.is_running():
+            check_scheduled_polls.start()
 
     @botsq.event
     async def on_message(message: discord.Message) -> None:
@@ -74,17 +114,49 @@ def run() -> None:
         if message.author.name != "ap0_64":
             return
 
-        for event_id, format_type, time_str in poll_line_pattern.findall(message.content):
-            embed = discord.Embed(
-                title=f"{format_type} (ID: #{event_id})",
-                description=build_description(time_str),
-                color=0x2b2d31
-            )
-            poll_msg = await message.channel.send(embed=embed)
-            vote_state[poll_msg.id] = {emoji: {} for emoji, _ in poll_options}
+        matches = POLL_LINE_PATTERN.findall(message.content)
+        if not matches:
+            return
 
-            for emoji, _ in poll_options:
-                await poll_msg.add_reaction(emoji)
+        schedule = load_schedule()
+        now = time.time()
+
+        for event_id, format_type, timestamp in matches:
+            post_at = int(timestamp) - SECONDS_BEFORE
+
+            if post_at <= now:
+                # Moins de 24h avant l'event (ou déjà passé) : on crée le sondage tout de suite
+                await create_poll(message.channel, event_id, format_type, timestamp)
+            else:
+                schedule.append({
+                    "event_id": event_id,
+                    "format_type": format_type,
+                    "timestamp": timestamp,
+                    "channel_id": message.channel.id,
+                    "post_at": post_at,
+                })
+
+        save_schedule(schedule)
+
+    @tasks.loop(minutes=1)
+    async def check_scheduled_polls() -> None:
+        schedule = load_schedule()
+        if not schedule:
+            return
+
+        now = time.time()
+        due = [entry for entry in schedule if entry["post_at"] <= now]
+        if not due:
+            return
+
+        remaining = [entry for entry in schedule if entry["post_at"] > now]
+
+        for entry in due:
+            channel = botsq.get_channel(entry["channel_id"]) or await botsq.fetch_channel(entry["channel_id"])
+            if isinstance(channel, discord.abc.Messageable):
+                await create_poll(channel, entry["event_id"], entry["format_type"], entry["timestamp"])
+
+        save_schedule(remaining)
 
     async def get_poll_message(payload: discord.RawReactionActionEvent) -> discord.Message | None:
         if botsq.user and payload.user_id == botsq.user.id:
@@ -123,7 +195,6 @@ def run() -> None:
         display_name = payload.member.display_name if payload.member else str(payload.user_id)
         changed = False
 
-        # Un seul choix possible : on retire les autres votes du membre (sans refetch, juste sur l'état connu)
         for other_emoji, users in state.items():
             if other_emoji != emoji and user_id in users:
                 users.pop(user_id)
