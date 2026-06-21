@@ -58,9 +58,9 @@ def run() -> None:
 
         matches = poll_line_pattern.findall(message.content)
 
-        for event_id, format_type, time_str in matches:
+        for format_type, time_str in matches:
             embed = discord.Embed(
-                title=f"{format_type} (ID: #{event_id})",
+                title=f"{format_type}",
                 description=build_description(time_str),
                 color=0x2b2d31
             )
