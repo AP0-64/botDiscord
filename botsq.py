@@ -11,11 +11,38 @@ def run() -> None:
 
     load_dotenv()
 
-    # Configurer les intents nécessaires
     intents = discord.Intents.default()
     intents.message_content = True
 
     botsq = discord.Client(intents=intents)
+
+    # Compilé une seule fois (au lieu de à chaque message)
+    poll_line_pattern = re.compile(r"`#(\d+)` \*\*(.*?):\*\* (<t:\d+:F> - <t:\d+:R>)")
+
+    # Source unique de vérité pour les options du sondage
+    poll_options = [
+        ("✅", "Can"),
+        ("❗", "Can sub"),
+        ("❓", "Not sure"),
+        ("❌", "Can't"),
+    ]
+
+    def build_description(time_str: str, users_by_emoji: dict | None = None) -> str:
+        """
+        Construit la description de l'embed.
+        - users_by_emoji=None  -> mode création : les 4 catégories à 0
+        - users_by_emoji=dict  -> mode mise à jour :
+        seules les catégories avec des votants s'affichent
+        """
+        parts = [time_str]
+        for emoji, label in poll_options:
+            if users_by_emoji is None:
+                parts.append(f"{emoji} **{label} (0)**")
+            else:
+                users = users_by_emoji.get(emoji, [])
+                if users:
+                    parts.append(f"{emoji} **{label} ({len(users)})**\n" + ", ".join(users))
+        return "\n\n".join(parts)
 
     @botsq.event
     async def on_ready() -> None:
@@ -29,30 +56,19 @@ def run() -> None:
         if message.author.name != "ap0_64":
             return
 
-        pattern = re.compile(r"`#(\d+)` \*\*(.*?):\*\* (<t:\d+:F> - <t:\d+:R>)")
-        matches = pattern.findall(message.content)
+        matches = poll_line_pattern.findall(message.content)
 
-        for match in matches:
-            event_id, format_type, time_str = match
-
+        for event_id, format_type, time_str in matches:
             embed = discord.Embed(
                 title=f"{format_type} (ID: #{event_id})",
-                description=(
-                    f"{time_str}\n\n"
-                    "✅ **Can (0)**\n\n"
-                    "❗ **Can sub (0)**\n\n"
-                    "❓ **Not sure (0)**\n\n"
-                    "❌ **Can't (0)**"
-                ),
-                color=0x2b2d31  # Default Discord dark embed color
+                description=build_description(time_str),
+                color=0x2b2d31
             )
 
             poll_msg = await message.channel.send(embed=embed)
 
-            # Ajout des réactions du sondage
-            reactions = ["✅", "❗", "❓", "❌"]
-            for reaction in reactions:
-                await poll_msg.add_reaction(reaction)
+            for emoji, _ in poll_options:
+                await poll_msg.add_reaction(emoji)
 
     async def update_embed(message: discord.Message) -> None:
         if not message.embeds:
@@ -61,62 +77,53 @@ def run() -> None:
         embed = message.embeds[0]
         if not embed.description:
             return
-        # On garde la première ligne qui contient l'horaire
+
         first_line = embed.description.split("\n\n")[0]
 
-        categories = {
-            "✅": {"title": "Can", "users": []},
-            "❗": {"title": "Can sub", "users": []},
-            "❓": {"title": "Not sure", "users": []},
-            "❌": {"title": "Can't", "users": []}
-        }
-
-        # On parcours les réactions pour récupérer les utilisateurs
+        users_by_emoji = {emoji: [] for emoji, _ in poll_options}
         for reaction in message.reactions:
             emoji = str(reaction.emoji)
-            if emoji in categories:
+            if emoji in users_by_emoji:
                 async for user in reaction.users():
                     if botsq.user and user.id != botsq.user.id:
-                        categories[emoji]["users"].append(user.display_name)
+                        users_by_emoji[emoji].append(user.display_name)
 
-        # On reconstruit la description
-        desc_parts = [first_line]
-        for emoji in ["✅", "❗", "❓", "❌"]:
-            data = categories[emoji]
-            users = data["users"]
-            count = len(users)
-            if count > 0:
-                part = f"{emoji} **{data['title']} ({count})**\n" + ", ".join(users)
-                desc_parts.append(part)
+        new_desc = build_description(first_line, users_by_emoji)
 
-        new_desc = "\n\n".join(desc_parts)
-
-        # On met à jour le message si besoin
         if new_desc != embed.description:
             new_embed = discord.Embed(title=embed.title, description=new_desc, color=embed.color)
             await message.edit(embed=new_embed)
 
-    @botsq.event
-    async def on_raw_reaction_add(payload: discord.RawReactionActionEvent) -> None:
+    async def get_poll_message(payload: discord.RawReactionActionEvent) -> discord.Message | None:
+        """Récupère le message de sondage visé par le payload, ou None si non pertinent."""
         if botsq.user and payload.user_id == botsq.user.id:
-            return
+            return None
 
         channel = botsq.get_channel(payload.channel_id) or await botsq.fetch_channel(payload.channel_id)
         if not isinstance(channel, discord.abc.Messageable):
-            return
+            return None
+
         try:
             message = await channel.fetch_message(payload.message_id)
         except discord.NotFound:
-            return
+            return None
 
         if not message.embeds or message.author != botsq.user:
-            return
+            return None
 
         embed = message.embeds[0]
         if not embed.title or "(ID: #" not in embed.title:
+            return None
+
+        return message
+
+    @botsq.event
+    async def on_raw_reaction_add(payload: discord.RawReactionActionEvent) -> None:
+        message = await get_poll_message(payload)
+        if message is None:
             return
 
-        # Supprimer les autres réactions de ce membre (pour qu'il n'ait qu'un seul choix)
+        # Un seul choix possible : on retire les autres réactions de ce membre
         for reaction in message.reactions:
             if str(reaction.emoji) != str(payload.emoji.name):
                 async for user in reaction.users():
@@ -127,22 +134,8 @@ def run() -> None:
 
     @botsq.event
     async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent) -> None:
-        if botsq.user and payload.user_id == botsq.user.id:
-            return
-
-        channel = botsq.get_channel(payload.channel_id) or await botsq.fetch_channel(payload.channel_id)
-        if not isinstance(channel, discord.abc.Messageable):
-            return
-        try:
-            message = await channel.fetch_message(payload.message_id)
-        except discord.NotFound:
-            return
-
-        if not message.embeds or message.author != botsq.user:
-            return
-
-        embed = message.embeds[0]
-        if not embed.title or "(ID: #" not in embed.title:
+        message = await get_poll_message(payload)
+        if message is None:
             return
 
         await update_embed(message)
