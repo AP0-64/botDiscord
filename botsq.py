@@ -6,8 +6,8 @@ import time
 from pathlib import Path
 
 import discord
-from discord.ext import tasks
 from dotenv import load_dotenv
+from discord.ext import tasks
 
 
 def run() -> None:
@@ -31,12 +31,13 @@ def run() -> None:
     ]
 
     schedule_file = Path(__file__).parent / "scheduled_polls.json"
-    seconds_before = 24 * 3600  # créer le sondage 24h avant l'event
+    seconds_before = 24 * 3600
 
     # État des votes en mémoire : message_id -> emoji -> {user_id: display_name}
     vote_state: dict[int, dict[str, dict[int, str]]] = {}
 
-    # --- Persistance des sondages en attente de création ---
+    def save_schedule(entries: list[dict]) -> None:
+        schedule_file.write_text(json.dumps(entries, indent=2))
 
     def load_schedule() -> list[dict]:
         if not schedule_file.exists():
@@ -45,9 +46,6 @@ def run() -> None:
             return json.loads(schedule_file.read_text())
         except (json.JSONDecodeError, OSError):
             return []
-
-    def save_schedule(entries: list[dict]) -> None:
-        schedule_file.write_text(json.dumps(entries, indent=2))
 
     # --- Construction de l'embed ---
 
@@ -117,6 +115,16 @@ def run() -> None:
         for emoji, _ in poll_options:
             await poll_msg.add_reaction(emoji)
 
+    async def clear_previous_messages(message: discord.Message) -> None:
+        channel = message.channel
+        if not isinstance(channel, discord.TextChannel):
+            return
+
+        try:
+            await channel.purge(before=message, limit=None)
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+
     @botsq.event
     async def on_ready() -> None:
         print("bot SQ prêt")
@@ -134,15 +142,21 @@ def run() -> None:
         if not matches:
             return
 
-        schedule = load_schedule()
         now = time.time()
 
+        await clear_previous_messages(message)
+        save_schedule([])
+
+        schedule: list[dict] = []
+
         for event_id, format_type, timestamp in matches:
-            post_at = int(timestamp) - seconds_before
+            event_timestamp = int(timestamp)
+            if event_timestamp <= now:
+                continue
+
+            post_at = event_timestamp - seconds_before
 
             if post_at <= now:
-                # Moins de 24h avant l'event (ou déjà passé) :
-                # on crée le sondage tout de suite
                 await create_poll(message.channel, event_id, format_type, timestamp)
             else:
                 schedule.append({
@@ -162,11 +176,17 @@ def run() -> None:
             return
 
         now = time.time()
-        due = [entry for entry in schedule if entry["post_at"] <= now]
+        due = [
+            entry for entry in schedule
+            if entry["post_at"] <= now and int(entry["timestamp"]) > now
+        ]
         if not due:
             return
 
-        remaining = [entry for entry in schedule if entry["post_at"] > now]
+        remaining = [
+            entry for entry in schedule
+            if entry["post_at"] > now and int(entry["timestamp"]) > now
+        ]
 
         for entry in due:
             channel = botsq.get_channel(entry["channel_id"])
