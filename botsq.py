@@ -1,4 +1,5 @@
 """Bot SQ - Filtre les événements en supprimant les passés et garde max 2 jours."""
+import asyncio
 import json
 import os
 import re
@@ -228,6 +229,109 @@ def run() -> None:
         return message
 
     @botsq.event
+    async def maybe_create_team_channel(
+        message: discord.Message,
+        state: dict[str, dict[int, str]]
+    ) -> None:
+
+        """Crée un salon éphémère par équipe complète dès que le quota 'Can' est atteint."""
+        embed = message.embeds[0]
+        title = embed.title or ""
+
+        # Extrait le format (2v2, 3v3, 4v4, 6v6) depuis le titre de l'embed
+        match = re.search(r"(\d+)v\d+", title, re.IGNORECASE)
+        if not match:
+            return
+        team_size = int(match.group(1))
+
+        guild = message.guild
+        if guild is None:
+            return
+
+        can_emoji = "✅"
+        can_users: dict[int, str] = state.get(can_emoji, {})
+        can_ids = list(can_users.keys())
+        total_can = len(can_ids)
+
+        if total_can < team_size:
+            return  # Pas encore assez de joueurs
+
+        # Récupère les salons éphémères déjà créés pour ce sondage
+        already_assigned: set[int] = set()
+        for existing_channel in guild.channels:
+            if isinstance(existing_channel, discord.TextChannel):
+                topic = existing_channel.topic or ""
+                if f"poll:{message.id}" in topic:
+                    # Récupère les membres du salon depuis le topic
+                    members_part = re.search(r"members:([\d,]+)", topic)
+                    if members_part:
+                        ids = [int(x) for x in members_part.group(1).split(",") if x]
+                        already_assigned.update(ids)
+
+        # Joueurs "can" pas encore dans un salon
+        unassigned = [uid for uid in can_ids if uid not in already_assigned]
+
+        # Crée autant d'équipes complètes que possible avec les non-assignés
+        teams_to_create = len(unassigned) // team_size
+        if teams_to_create == 0:
+            return
+
+        category = None  # Met une catégorie si tu veux, ou laisse None
+
+        for i in range(teams_to_create):
+            team_ids = unassigned[i * team_size : (i + 1) * team_size]
+            members = [guild.get_member(uid) for uid in team_ids]
+            members = [m for m in members if m is not None]
+
+            # Extrait l'event_id depuis le titre "#N"
+            event_match = re.search(r"#(\d+)", title)
+            event_id = event_match.group(1) if event_match else "?"
+
+            # Nom du salon : eq-{format}-{event_id}-{index}
+            team_index = (len(already_assigned) // team_size) + i + 1
+            channel_name = f"eq-{match.group(0).lower()}-{event_id}-{team_index}"
+
+            # Permissions : visible uniquement par les membres de l'équipe + admins
+            overwrites: dict[
+                discord.Role | discord.Member | discord.Object,
+                discord.PermissionOverwrite
+            ] = {
+                guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            }
+            for member in members:
+                overwrites[member] = discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True,
+                    read_message_history=True,
+                )
+
+            topic = (
+                f"poll:{message.id} "
+                f"members:{','.join(str(uid) for uid in team_ids)}"
+            )
+
+            try:
+                new_channel = await guild.create_text_channel(
+                    name=channel_name,
+                    overwrites=overwrites,
+                    topic=topic,
+                    category=category,
+                    reason=f"Équipe {team_index} pour l'event #{event_id}",
+                )
+                mentions = " ".join(m.mention for m in members)
+                await new_channel.send(
+                    f"🎮 **Équipe {team_index}** — {match.group(0).upper()} event #{event_id}\n"
+                    f"Joueurs : {mentions}\n"
+                    f"Ce salon sera supprimé après l'event."
+                )
+
+                await asyncio.sleep(12 * 3600)
+                await new_channel.delete(reason="Salon éphémère — 12h écoulées")
+
+            except (discord.Forbidden, discord.HTTPException) as e:
+                print(f"Impossible de créer le salon équipe : {e}")
+
+    @botsq.event
     async def on_raw_reaction_add(payload: discord.RawReactionActionEvent) -> None:
         message = await get_poll_message(payload)
         if message is None:
@@ -261,6 +365,8 @@ def run() -> None:
 
         if changed:
             await render_embed(message, state)
+            if emoji == "✅":
+                await maybe_create_team_channel(message, state)
 
     @botsq.event
     async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent) -> None:
