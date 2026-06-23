@@ -25,7 +25,6 @@ def run() -> None:
 
     poll_options = [
         ("✅", "Can"),
-        ("❗", "Can sub"),
         ("❓", "Not sure"),
         ("❌", "Can't"),
     ]
