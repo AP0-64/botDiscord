@@ -30,7 +30,10 @@ def main() -> None:
         return
 
     python_exe = get_python_executable()
-    subprocess.run([python_exe, str(script_path)], check=True)
+    try:
+        subprocess.run([python_exe, str(script_path)], check=True)
+    except KeyboardInterrupt:
+        print("\nInterruption demandée. Arrêt du bot.")
 
 
 if __name__ == "__main__":
