@@ -191,7 +191,14 @@ def run() -> None:
         for entry in due:
             channel = botsq.get_channel(entry["channel_id"])
             if channel is None:
-                channel = await botsq.fetch_channel(entry["channel_id"])
+                try:
+                    channel = await botsq.fetch_channel(entry["channel_id"])
+                except discord.NotFound:
+                    print(f"Salon introuvable (channel_id={entry['channel_id']}), entrée ignorée.")
+                    continue
+                except discord.HTTPException as e:
+                    print(f"Erreur HTTP en récupérant le salon : {e}")
+                    continue
             if isinstance(channel, discord.abc.Messageable):
                 await create_poll(
                     channel,
@@ -210,7 +217,14 @@ def run() -> None:
 
         channel = botsq.get_channel(payload.channel_id)
         if channel is None:
-            channel = await botsq.fetch_channel(payload.channel_id)
+            try:
+                channel = await botsq.fetch_channel(payload.channel_id)
+            except discord.NotFound:
+                print(f"Salon introuvable (channel_id={payload.channel_id}), entrée ignorée.")
+                return None
+            except discord.HTTPException as e:
+                print(f"Erreur HTTP en récupérant le salon : {e}")
+                return None
         if not isinstance(channel, discord.abc.Messageable):
             return None
 
