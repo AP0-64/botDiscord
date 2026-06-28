@@ -121,7 +121,7 @@ def run() -> None:
             return
 
         try:
-            await channel.purge(before=message, limit=None)
+            pass # await channel.purge(before=message, limit=None)
         except (discord.Forbidden, discord.HTTPException):
             pass
 
