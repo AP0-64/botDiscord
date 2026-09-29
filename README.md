@@ -43,14 +43,14 @@ Le suivi est enregistré dans `scheduled_polls.json` et `active_polls.json`, don
 
 **Portail développeur → Bot** : activer **Message Content Intent**.
 
-**Sur le salon des sondages** :
+**Portail développeur → OAuth2 / Bot → Permissions du bot** : cocher les cases ci-dessous (entier : `360777346112`).
 
 | Permission | Pourquoi |
 | --- | --- |
-| Voir le salon | Voir les messages et réactions |
+| Voir les salons | Voir les messages et réactions |
 | Envoyer des messages | Poster les sondages |
 | Intégrer des liens | Afficher l'embed du sondage |
-| Lire l'historique des messages | Retrouver les sondages après un redémarrage |
+| Voir les anciens messages | Retrouver les sondages après un redémarrage |
 | Ajouter des réactions | Mettre ✅ ❓ ❌ |
 | Gérer les messages | Retirer l'ancien vote quand un joueur change d'avis |
 | Créer des fils privés | Créer le lobby |
