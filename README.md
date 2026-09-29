@@ -21,7 +21,7 @@ python3 main.py
 
 ## Déroulé
 
-1. **Planning** : `ap0_64` poste un message avec des lignes du type
+1. **Planning** : `ap0_64` ou le salon d'annonces suivi `MK8DX 150cc Lounge #sq-schedule` poste un message avec des lignes du type
    `` `#12` **3v3:** <t:TIMESTAMP:F> - <t:TIMESTAMP:R> ``
    Chaque nouveau planning remplace le précédent. Les events passés sont ignorés.
 
@@ -59,18 +59,33 @@ Le suivi est enregistré dans `scheduled_polls.json` et `active_polls.json`, don
 
 ## Réglages
 
-Les réglages se trouvent en haut de [botsq.py](botsq.py) :
+Les réglages se trouvent dans [botsq/config.py](botsq/config.py) :
 
 | Variable | Défaut | Rôle |
 | --- | --- | --- |
-| `seconds_before` | 24h | Publication du sondage |
-| `reminder_before` | 1h | Ouverture du lobby |
-| `threads_lifetime` | 4h | Suppression du lobby après le début de l'event |
-| `registration_url` | — | Lien du salon d'inscription des équipes |
+| `SECONDS_BEFORE` | 24h | Publication du sondage |
+| `REMINDER_BEFORE` | 1h | Ouverture du lobby |
+| `THREADS_LIFETIME` | 4h | Suppression du lobby après le début de l'event |
+| `REGISTRATION_URL` | — | Lien du salon d'inscription des équipes |
+| `PLANNING_AUTHORS` | `ap0_64`, `MK8DX 150cc Lounge #sq-schedule` | Comptes autorisés à poster un planning |
+
+## Organisation du code
+
+| Fichier | Rôle |
+| --- | --- |
+| [main.py](main.py) | Point d'entrée (lance `python -m botsq` avec le Python du venv) |
+| [botsq/\_\_main\_\_.py](botsq/__main__.py) | Charge le token et démarre le client |
+| [botsq/config.py](botsq/config.py) | Réglages |
+| [botsq/client.py](botsq/client.py) | Client Discord partagé |
+| [botsq/storage.py](botsq/storage.py) | Lecture/écriture des JSON de suivi |
+| [botsq/polls.py](botsq/polls.py) | Sondages : embed, votes, création |
+| [botsq/lobby.py](botsq/lobby.py) | Lobby : création, synchro des votes, suppression |
+| [botsq/scheduler.py](botsq/scheduler.py) | Boucles de fond (H-24h, H-1h, H+4h) |
+| [botsq/events.py](botsq/events.py) | Handlers Discord (planning, réactions) |
 
 ## Vérifier le code
 
 ```bash
 pip install pyright
-pyright botsq.py
+pyright botsq
 ```

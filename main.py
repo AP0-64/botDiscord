@@ -18,15 +18,15 @@ def get_python_executable() -> str:
 def main() -> None:
     """Lancer le bot SQ"""
 
-    script_path = Path(__file__).with_name("botsq.py")
+    project_dir = Path(__file__).parent
 
-    if not script_path.exists():
-        print(f"Fichier introuvable: {script_path}")
+    if not (project_dir / "botsq").is_dir():
+        print(f"Package introuvable: {project_dir / 'botsq'}")
         return
 
     python_exe = get_python_executable()
     try:
-        subprocess.run([python_exe, str(script_path)], check=True)
+        subprocess.run([python_exe, "-m", "botsq"], cwd=project_dir, check=True)
     except KeyboardInterrupt:
         print("\nInterruption demandée. Arrêt du bot.")
 
