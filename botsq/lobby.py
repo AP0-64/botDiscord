@@ -68,6 +68,7 @@ async def open_lobby(entry: dict, message: discord.Message) -> None:
         f"\n\nDiscutez ici pour former vos équipes {teams_of}puis inscrivez-les ici : "
         f"{REGISTRATION_URL}\n"
         f"Un fil sera créé là-bas pour chaque équipe inscrite."
+        f"Ce fil sera automatiquement supprimé dans 4h heures."
     )
     await lobby.send(text)
 
