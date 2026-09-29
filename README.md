@@ -1,6 +1,6 @@
 # Bot SQ
 
-Bot Discord qui organise les events : il poste un sondage de dispo, ouvre un lobby pour former les équipes, puis crée un fil privé par équipe.
+Bot Discord qui organise les events : il poste un sondage de dispo, puis ouvre un lobby privé où les joueurs dispo s'organisent en équipes.
 
 ## Installation
 
@@ -29,17 +29,13 @@ python3 main.py
    Un seul vote par joueur, et la liste des votants se met à jour en direct.
 
 3. **H-1h : lobby**. Un fil privé `… - #12 - Lobby` est créé avec tous les ✅, qui y sont pingés.
-   Les joueurs y forment leurs équipes :
-   - `!team @joueur2 @joueur3` : enregistre une équipe (toi + les joueurs mentionnés).
-     La taille dépend du format : 2v2 → 2, 3v3 → 3, 4v4 → 4, 6v6 → 6.
-   - `!unteam` : annule ton équipe.
+   Les joueurs y discutent pour former leurs équipes, puis les inscrivent sur le
+   [salon d'inscription](https://discord.com/channels/445404006177570829/772517883107475516)
+   (autre serveur), où un fil est créé pour chaque équipe.
 
-   Un joueur qui vote ✅ plus tard est ajouté au lobby. Un joueur qui retire son ✅ en est retiré, et son équipe est dissoute.
+   Un joueur qui vote ✅ plus tard est ajouté au lobby, et celui qui retire son ✅ en est retiré.
 
-4. **H-5min : fils d'équipe**. Un fil privé `… - #12 - Room N` est créé par équipe enregistrée.
-   Les inscriptions sont closes, et les ✅ sans équipe sont annoncés **absents** dans le lobby.
-
-5. **H+4h : nettoyage**. Tous les fils de l'event (lobby et rooms) sont supprimés.
+4. **H+4h : nettoyage**. Le lobby est supprimé.
 
 Le suivi est enregistré dans `scheduled_polls.json` et `active_polls.json`, donc un redémarrage du bot ne fait rien perdre.
 
@@ -57,20 +53,20 @@ Le suivi est enregistré dans `scheduled_polls.json` et `active_polls.json`, don
 | Lire l'historique des messages | Retrouver les sondages après un redémarrage |
 | Ajouter des réactions | Mettre ✅ ❓ ❌ |
 | Gérer les messages | Retirer l'ancien vote quand un joueur change d'avis |
-| Créer des fils privés | Créer le lobby et les rooms |
-| Envoyer des messages dans les fils | Écrire dans les fils |
-| Gérer les fils | Supprimer les fils à H+4h |
+| Créer des fils privés | Créer le lobby |
+| Envoyer des messages dans les fils | Écrire dans le lobby |
+| Gérer les fils | Supprimer le lobby à H+4h |
 
 ## Réglages
 
-Les délais se trouvent en haut de [botsq.py](botsq.py) :
+Les réglages se trouvent en haut de [botsq.py](botsq.py) :
 
 | Variable | Défaut | Rôle |
 | --- | --- | --- |
 | `seconds_before` | 24h | Publication du sondage |
 | `reminder_before` | 1h | Ouverture du lobby |
-| `threads_before` | 5 min | Création des fils d'équipe |
-| `threads_lifetime` | 4h | Suppression des fils après le début de l'event |
+| `threads_lifetime` | 4h | Suppression du lobby après le début de l'event |
+| `registration_url` | — | Lien du salon d'inscription des équipes |
 
 ## Vérifier le code
 
