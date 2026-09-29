@@ -9,10 +9,12 @@ polls_lock = asyncio.Lock()
 
 
 def save_schedule(entries: list[dict]) -> None:
+    """Enregistre les sondages à publier plus tard."""
     SCHEDULE_FILE.write_text(json.dumps(entries, indent=2))
 
 
 def load_schedule() -> list[dict]:
+    """Charge les sondages à publier (liste vide si fichier absent ou invalide)."""
     if not SCHEDULE_FILE.exists():
         return []
     try:
@@ -22,10 +24,12 @@ def load_schedule() -> list[dict]:
 
 
 def save_active_polls(entries: list[dict]) -> None:
+    """Enregistre les sondages publiés en cours de suivi."""
     ACTIVE_POLLS_FILE.write_text(json.dumps(entries, indent=2))
 
 
 def load_active_polls() -> list[dict]:
+    """Charge les sondages suivis (liste vide si fichier absent ou invalide)."""
     if not ACTIVE_POLLS_FILE.exists():
         return []
     try:

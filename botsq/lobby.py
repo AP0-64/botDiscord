@@ -11,12 +11,14 @@ from .storage import load_active_polls, polls_lock
 
 
 def thread_name(entry: dict, suffix: str) -> str:
+    """Nom du fil : date - format - #id - suffixe (100 caractères max)."""
     dt = datetime.fromtimestamp(entry["timestamp"])
     date_str = f"{dt.month}/{dt.day}, {dt:%H:%M:%S}"
     return f"{date_str} - {entry['format_type']} - #{entry['event_id']} - {suffix}"[:100]
 
 
 async def get_thread(thread_id: int | None) -> discord.Thread | None:
+    """Retourne le fil Discord correspondant à l'id, ou None s'il n'existe plus."""
     if thread_id is None:
         return None
     try:
@@ -94,6 +96,7 @@ async def sync_lobby(message: discord.Message, user_id: int, is_can: bool) -> No
 
 
 async def delete_lobby(entry: dict) -> None:
+    """Supprime tous les fils (lobby et équipes) liés à l'event."""
     for thread_id in entry.get("thread_ids", []):
         try:
             thread = botsq.get_channel(thread_id) or await botsq.fetch_channel(thread_id)

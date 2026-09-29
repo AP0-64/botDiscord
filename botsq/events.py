@@ -29,6 +29,7 @@ async def clear_previous_messages(message: discord.Message) -> None:
 
 @botsq.event
 async def on_ready() -> None:
+    """Démarre les boucles de fond une fois le bot connecté."""
     print("bot SQ prêt")
     if not check_scheduled_polls.is_running():
         check_scheduled_polls.start()
@@ -118,6 +119,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent) -> None:
 
 @botsq.event
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent) -> None:
+    """Retire le vote du joueur et met à jour le sondage et le lobby."""
     message = await get_poll_message(payload)
     if message is None:
         return

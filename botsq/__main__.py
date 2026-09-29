@@ -3,7 +3,8 @@ import os
 
 from dotenv import load_dotenv
 
-from . import events  # noqa: F401  (enregistre les handlers sur le client)
+# Import nécessaire : enregistre les handlers sur le client
+from . import events  # noqa: F401  # pylint: disable=unused-import
 from .client import botsq
 
 

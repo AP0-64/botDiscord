@@ -27,7 +27,7 @@ async def check_scheduled_polls() -> None:
     now = time.time()
     due = [
         entry for entry in schedule
-        if entry["post_at"] <= now and int(entry["timestamp"]) > now
+        if entry["post_at"] <= now < int(entry["timestamp"])
     ]
     if not due:
         return
@@ -67,6 +67,7 @@ async def check_active_polls() -> None:
 
 
 async def process_active_polls() -> None:
+    """Ouvre les lobbies à H-1h et supprime les fils après l'event."""
     active_polls = load_active_polls()
     if not active_polls:
         return

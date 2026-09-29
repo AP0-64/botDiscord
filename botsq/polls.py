@@ -13,6 +13,7 @@ def build_description(
     time_str: str,
     state: dict[str, dict[int, str]] | None = None,
 ) -> str:
+    """Construit la description de l'embed : horaire puis votants par option."""
     parts = [time_str]
     for emoji, label in POLL_OPTIONS:
         if state is None:
@@ -31,6 +32,7 @@ async def render_embed(
     message: discord.Message,
     state: dict[str, dict[int, str]],
 ) -> None:
+    """Met à jour l'embed du sondage si les votes ont changé."""
     embed = message.embeds[0]
     first_line = embed.description.split("\n\n")[0] if embed.description else ""
     new_desc = build_description(first_line, state)
@@ -44,6 +46,7 @@ async def render_embed(
 
 
 async def hydrate_votes(message: discord.Message) -> dict[str, dict[int, str]]:
+    """Retourne l'état des votes, reconstruit depuis les réactions si absent du cache."""
     if message.id in vote_state:
         return vote_state[message.id]
 
@@ -60,6 +63,7 @@ async def hydrate_votes(message: discord.Message) -> dict[str, dict[int, str]]:
 
 
 async def get_can_ids(message: discord.Message) -> list[int]:
+    """Retourne les ids des joueurs ayant voté 'Can'."""
     state = await hydrate_votes(message)
     return list(state.get(CAN_EMOJI, {}).keys())
 
@@ -103,16 +107,7 @@ async def get_poll_message(
     if botsq.user and payload.user_id == botsq.user.id:
         return None
 
-    channel = botsq.get_channel(payload.channel_id)
-    if channel is None:
-        try:
-            channel = await botsq.fetch_channel(payload.channel_id)
-        except discord.NotFound:
-            print(f"Salon introuvable (channel_id={payload.channel_id}), entrée ignorée.")
-            return None
-        except discord.HTTPException as e:
-            print(f"Erreur HTTP en récupérant le salon : {e}")
-            return None
+    channel = await resolve_channel(payload.channel_id)
     if not isinstance(channel, discord.abc.Messageable):
         return None
 
@@ -121,14 +116,25 @@ async def get_poll_message(
     except discord.NotFound:
         return None
 
-    if not message.embeds or message.author != botsq.user:
-        return None
-
-    embed = message.embeds[0]
-    if not embed.title or "(ID: #" not in embed.title:
+    title = message.embeds[0].title if message.embeds else None
+    if message.author != botsq.user or not title or "(ID: #" not in title:
         return None
 
     return message
+
+
+async def resolve_channel(channel_id: int):
+    """Retourne le salon depuis le cache, sinon via l'API (None en cas d'échec)."""
+    channel = botsq.get_channel(channel_id)
+    if channel is not None:
+        return channel
+    try:
+        return await botsq.fetch_channel(channel_id)
+    except discord.NotFound:
+        print(f"Salon introuvable (channel_id={channel_id}), entrée ignorée.")
+    except discord.HTTPException as e:
+        print(f"Erreur HTTP en récupérant le salon : {e}")
+    return None
 
 
 async def fetch_poll_message(entry: dict) -> discord.Message | None:
