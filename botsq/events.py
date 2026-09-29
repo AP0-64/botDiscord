@@ -12,14 +12,19 @@ from .storage import save_schedule
 
 
 async def clear_previous_messages(message: discord.Message) -> None:
+    """Supprime tout ce qui précède le planning dans le salon (désactivé).
+
+    Pour l'activer, décommenter le bloc ci-dessous.
+    Nécessite les permissions "Gérer les messages" et "Voir les anciens messages".
+    """
     channel = message.channel
     if not isinstance(channel, discord.TextChannel):
         return
 
-    try:
-        pass # await channel.purge(before=message, limit=None)
-    except (discord.Forbidden, discord.HTTPException):
-        pass
+    # try:
+    #     await channel.purge(before=message, limit=None)
+    # except (discord.Forbidden, discord.HTTPException) as e:
+    #     print(f"Impossible de vider le salon : {e}")
 
 
 @botsq.event
