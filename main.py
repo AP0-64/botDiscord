@@ -1,4 +1,4 @@
-"""Point d'entrée pour lancer un bot spécifique."""
+"""Point d'entrée pour lancer le bot SQ."""
 from pathlib import Path
 import subprocess
 import sys
@@ -16,14 +16,9 @@ def get_python_executable() -> str:
 
 
 def main() -> None:
-    """Lancer le bot spécifié en argument de la ligne de commande"""
+    """Lancer le bot SQ"""
 
-    if len(sys.argv) != 2 or sys.argv[1] not in {"atlas", "scora", "botsq"}:
-        print("Usage: python main.py atlas|scora|botsq")
-        return
-
-    bot_name = sys.argv[1]
-    script_path = Path(__file__).with_name(f"{bot_name}.py")
+    script_path = Path(__file__).with_name("botsq.py")
 
     if not script_path.exists():
         print(f"Fichier introuvable: {script_path}")
