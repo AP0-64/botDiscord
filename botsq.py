@@ -4,6 +4,7 @@ import json
 import os
 import re
 import time
+from datetime import datetime
 from pathlib import Path
 
 import discord
@@ -33,6 +34,14 @@ def run() -> None:
     schedule_file = Path(__file__).parent / "scheduled_polls.json"
     seconds_before = 24 * 3600
 
+    # Sondages publiés, suivis pour le lobby (H-1) et la création des fils d'équipe (H-5min)
+    active_polls_file = Path(__file__).parent / "active_polls.json"
+    reminder_before = 3600
+    threads_before = 5 * 60
+    # Protège active_polls.json entre la boucle et les commandes
+    polls_lock = asyncio.Lock()
+    threads_lifetime = 4 * 3600  # Fils supprimés 4h après le début de l'event
+
     # État des votes en mémoire : message_id -> emoji -> {user_id: display_name}
     vote_state: dict[int, dict[str, dict[int, str]]] = {}
 
@@ -46,6 +55,21 @@ def run() -> None:
             return json.loads(schedule_file.read_text())
         except (json.JSONDecodeError, OSError):
             return []
+
+    def save_active_polls(entries: list[dict]) -> None:
+        active_polls_file.write_text(json.dumps(entries, indent=2))
+
+    def load_active_polls() -> list[dict]:
+        if not active_polls_file.exists():
+            return []
+        try:
+            entries = json.loads(active_polls_file.read_text())
+        except (json.JSONDecodeError, OSError):
+            return []
+        for entry in entries:
+            entry.setdefault("lobby_thread_id", None)
+            entry.setdefault("teams", [])
+        return entries
 
     # --- Construction de l'embed ---
 
@@ -115,6 +139,20 @@ def run() -> None:
         for emoji, _ in poll_options:
             await poll_msg.add_reaction(emoji)
 
+        active_polls = load_active_polls()
+        active_polls.append({
+            "message_id": poll_msg.id,
+            "channel_id": poll_msg.channel.id,
+            "event_id": event_id,
+            "format_type": format_type,
+            "timestamp": int(timestamp),
+            "reminded": False,
+            "threads_created": False,
+            "lobby_thread_id": None,
+            "teams": [],
+        })
+        save_active_polls(active_polls)
+
     async def clear_previous_messages(message: discord.Message) -> None:
         channel = message.channel
         if not isinstance(channel, discord.TextChannel):
@@ -130,10 +168,15 @@ def run() -> None:
         print("bot SQ prêt")
         if not check_scheduled_polls.is_running():
             check_scheduled_polls.start()
+        if not check_active_polls.is_running():
+            check_active_polls.start()
 
     @botsq.event
     async def on_message(message: discord.Message) -> None:
         if message.author == botsq.user:
+            return
+        if isinstance(message.channel, discord.Thread):
+            await handle_lobby_command(message)
             return
         if message.author.name != "ap0_64":
             return
@@ -242,108 +285,298 @@ def run() -> None:
 
         return message
 
-    @botsq.event
-    async def maybe_create_team_channel(
-        message: discord.Message,
-        state: dict[str, dict[int, str]]
-    ) -> None:
-
-        """Crée un salon éphémère par équipe complète dès que le quota 'Can' est atteint."""
-        embed = message.embeds[0]
-        title = embed.title or ""
-
-        # Extrait le format (2v2, 3v3, 4v4, 6v6) depuis le titre de l'embed
-        match = re.search(r"(\d+)v\d+", title, re.IGNORECASE)
-        if not match:
-            return
-        team_size = int(match.group(1))
-
-        guild = message.guild
-        if guild is None:
-            return
-
-        can_emoji = "✅"
-        can_users: dict[int, str] = state.get(can_emoji, {})
-        can_ids = list(can_users.keys())
-        total_can = len(can_ids)
-
-        if total_can < team_size:
-            return  # Pas encore assez de joueurs
-
-        # Récupère les salons éphémères déjà créés pour ce sondage
-        already_assigned: set[int] = set()
-        for existing_channel in guild.channels:
-            if isinstance(existing_channel, discord.TextChannel):
-                topic = existing_channel.topic or ""
-                if f"poll:{message.id}" in topic:
-                    # Récupère les membres du salon depuis le topic
-                    members_part = re.search(r"members:([\d,]+)", topic)
-                    if members_part:
-                        ids = [int(x) for x in members_part.group(1).split(",") if x]
-                        already_assigned.update(ids)
-
-        # Joueurs "can" pas encore dans un salon
-        unassigned = [uid for uid in can_ids if uid not in already_assigned]
-
-        # Crée autant d'équipes complètes que possible avec les non-assignés
-        teams_to_create = len(unassigned) // team_size
-        if teams_to_create == 0:
-            return
-
-        category = None  # Met une catégorie si tu veux, ou laisse None
-
-        for i in range(teams_to_create):
-            team_ids = unassigned[i * team_size : (i + 1) * team_size]
-            members = [guild.get_member(uid) for uid in team_ids]
-            members = [m for m in members if m is not None]
-
-            # Extrait l'event_id depuis le titre "#N"
-            event_match = re.search(r"#(\d+)", title)
-            event_id = event_match.group(1) if event_match else "?"
-
-            # Nom du salon : eq-{format}-{event_id}-{index}
-            team_index = (len(already_assigned) // team_size) + i + 1
-            channel_name = f"eq-{match.group(0).lower()}-{event_id}-{team_index}"
-
-            # Permissions : visible uniquement par les membres de l'équipe + admins
-            overwrites: dict[
-                discord.Role | discord.Member | discord.Object,
-                discord.PermissionOverwrite
-            ] = {
-                guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            }
-            for member in members:
-                overwrites[member] = discord.PermissionOverwrite(
-                    view_channel=True,
-                    send_messages=True,
-                    read_message_history=True,
-                )
-
-            topic = (
-                f"poll:{message.id} "
-                f"members:{','.join(str(uid) for uid in team_ids)}"
-            )
-
+    async def fetch_poll_message(entry: dict) -> discord.Message | None:
+        channel = botsq.get_channel(entry["channel_id"])
+        if channel is None:
             try:
-                new_channel = await guild.create_text_channel(
-                    name=channel_name,
-                    overwrites=overwrites,
-                    topic=topic,
-                    category=category,
-                    reason=f"Équipe {team_index} pour l'event #{event_id}",
+                channel = await botsq.fetch_channel(entry["channel_id"])
+            except discord.HTTPException as e:
+                print(f"Salon du sondage #{entry['event_id']} introuvable : {e}")
+                return None
+        if not isinstance(channel, discord.TextChannel):
+            return None
+        try:
+            return await channel.fetch_message(entry["message_id"])
+        except discord.HTTPException as e:
+            print(f"Sondage #{entry['event_id']} introuvable : {e}")
+            return None
+
+    def get_team_size(entry: dict) -> int | None:
+        """Taille d'équipe déduite du format : 2v2 -> 2, 3v3 -> 3, 4v4 -> 4, 6v6 -> 6."""
+        match = re.search(r"(\d+)v\d+", entry["format_type"], re.IGNORECASE)
+        return int(match.group(1)) if match else None
+
+    def thread_name(entry: dict, suffix: str) -> str:
+        dt = datetime.fromtimestamp(entry["timestamp"])
+        date_str = f"{dt.month}/{dt.day}, {dt:%H:%M:%S}"
+        return f"{date_str} - {entry['format_type']} - #{entry['event_id']} - {suffix}"[:100]
+
+    async def get_can_ids(message: discord.Message) -> list[int]:
+        state = await hydrate_votes(message)
+        return list(state.get("✅", {}).keys())
+
+    async def get_thread(thread_id: int | None) -> discord.Thread | None:
+        if thread_id is None:
+            return None
+        try:
+            thread = botsq.get_channel(thread_id) or await botsq.fetch_channel(thread_id)
+        except discord.HTTPException:
+            return None
+        return thread if isinstance(thread, discord.Thread) else None
+
+    def build_teams_recap(entry: dict, can_ids: list[int]) -> str:
+        teams: list[list[int]] = entry["teams"]
+        in_team = {uid for team in teams for uid in team}
+        lines = [f"**Équipes enregistrées ({len(teams)})**"]
+        for index, team in enumerate(teams, start=1):
+            lines.append(f"Room {index} : " + " ".join(f"<@{uid}>" for uid in team))
+        without_team = [uid for uid in can_ids if uid not in in_team]
+        if without_team:
+            lines.append("Sans équipe : " + " ".join(f"<@{uid}>" for uid in without_team))
+        return "\n".join(lines)
+
+    async def open_lobby(entry: dict, message: discord.Message) -> None:
+        """H-1 : crée un fil privé avec tous les 'Can' pour qu'ils forment leurs équipes."""
+        channel = message.channel
+        if not isinstance(channel, discord.TextChannel):
+            return
+        can_ids = await get_can_ids(message)
+        if not can_ids:
+            return
+
+        try:
+            lobby = await channel.create_thread(
+                name=thread_name(entry, "Lobby"),
+                type=discord.ChannelType.private_thread,
+                invitable=False,
+                auto_archive_duration=1440,
+                reason=f"Lobby de l'event #{entry['event_id']}",
+            )
+        except (discord.Forbidden, discord.HTTPException) as e:
+            print(f"Impossible de créer le lobby : {e}")
+            return
+
+        entry["lobby_thread_id"] = lobby.id
+        entry.setdefault("thread_ids", []).append(lobby.id)
+        for uid in can_ids:
+            try:
+                await lobby.add_user(discord.Object(id=uid))
+            except discord.HTTPException:
+                pass
+
+        ts = entry["timestamp"]
+        mentions = " ".join(f"<@{uid}>" for uid in can_ids)
+        text = (
+            f"{mentions}\n"
+            f"Vous avez voté **Can** pour **{entry['format_type']} (ID: #{entry['event_id']})** : "
+            f"l'event commence <t:{ts}:R> (<t:{ts}:t>)."
+        )
+        team_size = get_team_size(entry)
+        if team_size:
+            text += (
+                f"\n\nFormez vos équipes de **{team_size}** ici, puis enregistrez-les :\n"
+                f"`!team @joueur ...` → crée ton équipe (toi + {team_size - 1} joueur(s) mentionné(s))\n"
+                f"`!unteam` → annule ton équipe\n\n"
+                f"Les fils d'équipe seront créés <t:{ts - threads_before}:R>. "
+                f"Les joueurs sans équipe à ce moment-là seront considérés **absents**."
+            )
+        await lobby.send(text)
+
+    async def create_team_threads(entry: dict, message: discord.Message) -> None:
+        """H-5 : crée un fil privé par équipe enregistrée, les autres sont absents."""
+        channel = message.channel
+        if not isinstance(channel, discord.TextChannel):
+            return
+        if get_team_size(entry) is None:
+            return
+
+        teams: list[list[int]] = entry["teams"]
+        for index, team_ids in enumerate(teams, start=1):
+            try:
+                thread = await channel.create_thread(
+                    name=thread_name(entry, f"Room {index}"),
+                    type=discord.ChannelType.private_thread,
+                    invitable=False,
+                    auto_archive_duration=1440,
+                    reason=f"Équipe {index} pour l'event #{entry['event_id']}",
                 )
-                mentions = " ".join(m.mention for m in members)
-                await new_channel.send(
-                    f"🎮 **Équipe {team_index}** — {match.group(0).upper()} event #{event_id}\n"
+                entry.setdefault("thread_ids", []).append(thread.id)
+                for uid in team_ids:
+                    await thread.add_user(discord.Object(id=uid))
+                mentions = " ".join(f"<@{uid}>" for uid in team_ids)
+                await thread.send(
+                    f"**Room {index}** — {entry['format_type']} event #{entry['event_id']}\n"
                     f"Joueurs : {mentions}\n"
-                    f"Ce salon sera supprimé après l'event."
+                    f"Début <t:{entry['timestamp']}:R>. "
+                    f"Ce fil sera supprimé 4h après le début de l'event."
                 )
-
-                await asyncio.sleep(12 * 3600)
-                await new_channel.delete(reason="Salon éphémère — 12h écoulées")
-
             except (discord.Forbidden, discord.HTTPException) as e:
-                print(f"Impossible de créer le salon équipe : {e}")
+                print(f"Impossible de créer le fil de l'équipe {index} : {e}")
+
+        lobby = await get_thread(entry.get("lobby_thread_id"))
+        if lobby is None:
+            return
+        in_team = {uid for team in teams for uid in team}
+        absents = [uid for uid in await get_can_ids(message) if uid not in in_team]
+        text = f"Inscriptions closes : {len(teams)} équipe(s) créée(s), rendez-vous dans vos fils."
+        if absents:
+            text += "\nAbsents : " + " ".join(f"<@{uid}>" for uid in absents)
+        await lobby.send(text)
+
+    async def handle_lobby_command(message: discord.Message) -> None:
+        """Commandes `!team` / `!unteam` tapées dans un lobby."""
+        content = message.content.strip()
+        command = content.split(maxsplit=1)[0].lower() if content else ""
+        if command not in ("!team", "!unteam"):
+            return
+
+        async with polls_lock:
+            active_polls = load_active_polls()
+            entry = next(
+                (e for e in active_polls if e.get("lobby_thread_id") == message.channel.id),
+                None,
+            )
+            if entry is None:
+                return
+            team_size = get_team_size(entry)
+            if team_size is None:
+                await message.reply("Ce format n'a pas d'équipes.")
+                return
+            if entry["threads_created"]:
+                await message.reply("Les inscriptions sont closes.")
+                return
+            poll_message = await fetch_poll_message(entry)
+            if poll_message is None:
+                return
+            can_ids = await get_can_ids(poll_message)
+            author_id = message.author.id
+            teams: list[list[int]] = entry["teams"]
+
+            if command == "!unteam":
+                team = next((t for t in teams if author_id in t), None)
+                if team is None:
+                    await message.reply("Tu n'es dans aucune équipe.")
+                    return
+                teams.remove(team)
+            else:
+                team = [author_id]
+                for uid in message.raw_mentions:
+                    if uid not in team and (botsq.user is None or uid != botsq.user.id):
+                        team.append(uid)
+                if len(team) != team_size:
+                    await message.reply(
+                        f"Une équipe fait **{team_size}** joueurs : toi + "
+                        f"{team_size - 1} joueur(s) mentionné(s)."
+                    )
+                    return
+                not_can = [uid for uid in team if uid not in can_ids]
+                if not_can:
+                    await message.reply(
+                        "Ces joueurs n'ont pas voté Can : "
+                        + " ".join(f"<@{uid}>" for uid in not_can)
+                    )
+                    return
+                in_team = {uid for t in teams for uid in t}
+                already = [uid for uid in team if uid in in_team]
+                if already:
+                    await message.reply(
+                        "Déjà dans une équipe : "
+                        + " ".join(f"<@{uid}>" for uid in already)
+                    )
+                    return
+                teams.append(team)
+
+            save_active_polls(active_polls)
+
+        await message.reply(
+            build_teams_recap(entry, can_ids),
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+
+    async def sync_lobby(message: discord.Message, user_id: int, is_can: bool) -> None:
+        """Répercute un changement de vote 'Can' sur le lobby déjà ouvert."""
+        async with polls_lock:
+            active_polls = load_active_polls()
+            entry = next((e for e in active_polls if e["message_id"] == message.id), None)
+            if entry is None or entry["threads_created"]:
+                return
+            lobby = await get_thread(entry.get("lobby_thread_id"))
+            if lobby is None:
+                return
+
+            if is_can:
+                try:
+                    await lobby.add_user(discord.Object(id=user_id))
+                    await lobby.send(f"<@{user_id}> a rejoint le lobby.")
+                except discord.HTTPException:
+                    pass
+                return
+
+            # Plus 'Can' : on dissout son équipe éventuelle
+            team = next((t for t in entry["teams"] if user_id in t), None)
+            if team is not None:
+                entry["teams"].remove(team)
+                save_active_polls(active_polls)
+                await lobby.send(
+                    f"⚠️ <@{user_id}> n'est plus Can, son équipe est dissoute : "
+                    + " ".join(f"<@{uid}>" for uid in team)
+                )
+            try:
+                await lobby.remove_user(discord.Object(id=user_id))
+            except discord.HTTPException:
+                pass
+
+    async def delete_team_threads(entry: dict) -> None:
+        for thread_id in entry.get("thread_ids", []):
+            try:
+                thread = botsq.get_channel(thread_id) or await botsq.fetch_channel(thread_id)
+                if isinstance(thread, discord.Thread):
+                    await thread.delete()
+            except discord.NotFound:
+                pass  # Déjà supprimé à la main
+            except discord.HTTPException as e:
+                print(f"Impossible de supprimer le fil {thread_id} : {e}")
+
+    @tasks.loop(minutes=1)
+    async def check_active_polls() -> None:
+        async with polls_lock:
+            await process_active_polls()
+
+    async def process_active_polls() -> None:
+        active_polls = load_active_polls()
+        if not active_polls:
+            return
+
+        now = time.time()
+        remaining: list[dict] = []
+
+        for entry in active_polls:
+            ts = entry["timestamp"]
+            if now >= ts + threads_lifetime:
+                await delete_team_threads(entry)
+                continue  # Event terminé : plus rien à faire
+            if ts <= now:
+                remaining.append(entry)  # On garde l'entrée pour supprimer les fils plus tard
+                continue
+
+            reminder_due = not entry["reminded"] and now >= ts - reminder_before
+            threads_due = not entry["threads_created"] and now >= ts - threads_before
+
+            if reminder_due or threads_due:
+                message = await fetch_poll_message(entry)
+                if message is None:
+                    await delete_team_threads(entry)
+                    continue  # Sondage supprimé : on arrête de le suivre
+                if reminder_due:
+                    await open_lobby(entry, message)
+                    entry["reminded"] = True
+                if threads_due:
+                    await create_team_threads(entry, message)
+                    entry["threads_created"] = True
+
+            remaining.append(entry)
+
+        save_active_polls(remaining)
 
     @botsq.event
     async def on_raw_reaction_add(payload: discord.RawReactionActionEvent) -> None:
@@ -360,6 +593,7 @@ def run() -> None:
         member = payload.member
         display_name = member.display_name if member else str(payload.user_id)
         changed = False
+        was_can = user_id in state.get("✅", {})
 
         for other_emoji, users in state.items():
             if other_emoji != emoji and user_id in users:
@@ -379,8 +613,8 @@ def run() -> None:
 
         if changed:
             await render_embed(message, state)
-            if emoji == "✅":
-                await maybe_create_team_channel(message, state)
+            if emoji == "✅" or was_can:
+                await sync_lobby(message, user_id, emoji == "✅")
 
     @botsq.event
     async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent) -> None:
@@ -392,6 +626,8 @@ def run() -> None:
         emoji = str(payload.emoji)
         if emoji in state and state[emoji].pop(payload.user_id, None) is not None:
             await render_embed(message, state)
+            if emoji == "✅":
+                await sync_lobby(message, payload.user_id, False)
 
     token = os.getenv("DISCORD_TOKEN_BOTSQ")
     if not token:

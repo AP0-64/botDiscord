@@ -146,6 +146,7 @@ venv.bak/
 
 # Bot SQ runtime file
 scheduled_polls.json
+active_polls.json
 
 # Spyder project settings
 .spyderproject
