@@ -37,6 +37,8 @@ python3 main.py
 
 4. **H+4h : nettoyage**. Le lobby est supprimé.
 
+5. **Ping Lounge** : tous les jours à 9h et 16h (heure de Paris), le bot écrit `@Lounge` dans le salon.
+
 Le suivi est enregistré dans `scheduled_polls.json` et `active_polls.json`, donc un redémarrage du bot ne fait rien perdre.
 
 ## Permissions Discord
@@ -67,6 +69,7 @@ Les réglages se trouvent dans [botsq/config.py](botsq/config.py) :
 | `REMINDER_BEFORE` | 1h | Ouverture du lobby |
 | `THREADS_LIFETIME` | 4h | Suppression du lobby après le début de l'event |
 | `REGISTRATION_URL` | — | Lien du salon d'inscription des équipes |
+| `LOUNGE_PING_CHANNEL_ID` / `LOUNGE_PING_TIMES` | salon du bot, 9h et 16h | Salon et heures du ping `@Lounge` |
 | `PLANNING_AUTHORS` | `ap0_64`, `MK8DX 150cc Lounge #sq-schedule` | Comptes autorisés à poster un planning |
 
 ## Organisation du code

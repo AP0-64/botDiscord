@@ -7,7 +7,7 @@ from .client import botsq
 from .config import CAN_EMOJI, PLANNING_AUTHORS, POLL_LINE_PATTERN, SECONDS_BEFORE
 from .lobby import sync_lobby
 from .polls import create_poll, get_poll_message, hydrate_votes, render_embed
-from .scheduler import check_active_polls, check_scheduled_polls
+from .scheduler import check_active_polls, check_scheduled_polls, ping_lounge
 from .storage import save_schedule
 
 
@@ -35,6 +35,8 @@ async def on_ready() -> None:
         check_scheduled_polls.start()
     if not check_active_polls.is_running():
         check_active_polls.start()
+    if not ping_lounge.is_running():
+        ping_lounge.start()
 
 
 @botsq.event

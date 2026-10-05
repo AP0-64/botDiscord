@@ -1,11 +1,17 @@
-"""Boucles de fond : publication des sondages et cycle de vie des lobbies."""
+"""Boucles de fond : sondages, cycle de vie des lobbies et ping Lounge."""
 import time
 
 import discord
 from discord.ext import tasks
 
 from .client import botsq
-from .config import REMINDER_BEFORE, THREADS_LIFETIME
+from .config import (
+    LOUNGE_PING_CHANNEL_ID,
+    LOUNGE_PING_TIMES,
+    LOUNGE_ROLE_NAME,
+    REMINDER_BEFORE,
+    THREADS_LIFETIME,
+)
 from .lobby import delete_lobby, open_lobby
 from .polls import create_poll, fetch_poll_message
 from .storage import (
@@ -94,3 +100,28 @@ async def process_active_polls() -> None:
         remaining.append(entry)
 
     save_active_polls(remaining)
+
+
+@tasks.loop(time=LOUNGE_PING_TIMES)
+async def ping_lounge() -> None:
+    """Tous les jours à 9h et 16h : ping du rôle Lounge dans le salon."""
+    channel = botsq.get_channel(LOUNGE_PING_CHANNEL_ID)
+    if channel is None:
+        try:
+            channel = await botsq.fetch_channel(LOUNGE_PING_CHANNEL_ID)
+        except discord.HTTPException as e:
+            print(f"Salon du ping Lounge introuvable : {e}")
+            return
+    if not isinstance(channel, discord.TextChannel):
+        return
+
+    # Vraie mention si le rôle existe, sinon simple texte
+    role = discord.utils.get(channel.guild.roles, name=LOUNGE_ROLE_NAME)
+    content = role.mention if role else f"@{LOUNGE_ROLE_NAME}"
+    try:
+        await channel.send(
+            content,
+            allowed_mentions=discord.AllowedMentions(roles=True),
+        )
+    except discord.HTTPException as e:
+        print(f"Impossible d'envoyer le ping Lounge : {e}")

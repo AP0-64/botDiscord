@@ -1,6 +1,8 @@
 """Réglages du bot SQ."""
+import datetime
 import re
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 # Dossier racine du projet (où sont stockés les fichiers JSON)
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -32,3 +34,11 @@ THREADS_LIFETIME = 4 * 3600  # Lobby supprimé 4h après le début de l'event
 
 # Salon où les équipes s'inscrivent (autre serveur)
 REGISTRATION_URL = "https://discord.com/channels/445404006177570829/772517883107475516"
+
+# Ping quotidien du rôle Lounge
+LOUNGE_PING_CHANNEL_ID = 1342050873177542719
+LOUNGE_ROLE_NAME = "Lounge"
+LOUNGE_PING_TIMES = [
+    datetime.time(hour=9, tzinfo=ZoneInfo("Europe/Paris")),
+    datetime.time(hour=16, tzinfo=ZoneInfo("Europe/Paris")),
+]
