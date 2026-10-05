@@ -18,19 +18,15 @@ from .storage import load_schedule, save_schedule
 
 
 async def clear_previous_messages(message: discord.Message) -> None:
-    """Supprime tout ce qui précède le planning dans le salon (désactivé).
-
-    Pour l'activer, décommenter le bloc ci-dessous.
-    Nécessite les permissions "Gérer les messages" et "Voir les anciens messages".
-    """
+    """Supprime tout ce qui précède le message dans le salon."""
     channel = message.channel
     if not isinstance(channel, discord.TextChannel):
         return
 
-    # try:
-    #     await channel.purge(before=message, limit=None)
-    # except (discord.Forbidden, discord.HTTPException) as e:
-    #     print(f"Impossible de vider le salon : {e}")
+    try:
+        await channel.purge(before=message, limit=None)
+    except (discord.Forbidden, discord.HTTPException) as e:
+        print(f"Impossible de vider le salon : {e}")
 
 
 @botsq.event
@@ -47,7 +43,7 @@ async def on_ready() -> None:
 
 @botsq.event
 async def on_message(message: discord.Message) -> None:
-    """Un nouveau planning remplace le précédent."""
+    """Un nouveau planning vide le salon et remplace le précédent."""
     if message.author == botsq.user:
         return
     if message.channel.id not in BOT_CHANNEL_IDS:
@@ -55,6 +51,7 @@ async def on_message(message: discord.Message) -> None:
     if message.author.name not in PLANNING_AUTHORS:
         return
 
+    # Seul un message de planning déclenche quelque chose (un simple "ok" est ignoré)
     matches = POLL_LINE_PATTERN.findall(message.content)
     if not matches:
         return
