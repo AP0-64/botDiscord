@@ -47,6 +47,7 @@ python3 main.py
    Si le serveur a un rôle `Lounge`, il est vraiment mentionné (notification). Sinon c'est du simple texte.
 
 Rien n'est stocké sur disque : le bot relit ses salons chaque minute.
+
 - les prochains sondages viennent du **dernier planning** du salon ;
 - un sondage déjà publié (embed `… (ID: #12)`) n'est jamais reposté ;
 - les lobbies sont retrouvés par leur nom (`… - #12 - Lobby`).
