@@ -4,11 +4,17 @@ import time
 import discord
 
 from .client import botsq
-from .config import CAN_EMOJI, PLANNING_AUTHORS, POLL_LINE_PATTERN, SECONDS_BEFORE
+from .config import (
+    BOT_CHANNEL_IDS,
+    CAN_EMOJI,
+    PLANNING_AUTHORS,
+    POLL_LINE_PATTERN,
+    SECONDS_BEFORE,
+)
 from .lobby import sync_lobby
 from .polls import create_poll, get_poll_message, hydrate_votes, render_embed
 from .scheduler import check_active_polls, check_scheduled_polls, ping_lounge
-from .storage import save_schedule
+from .storage import load_schedule, save_schedule
 
 
 async def clear_previous_messages(message: discord.Message) -> None:
@@ -44,6 +50,8 @@ async def on_message(message: discord.Message) -> None:
     """Un nouveau planning remplace le précédent."""
     if message.author == botsq.user:
         return
+    if message.channel.id not in BOT_CHANNEL_IDS:
+        return
     if message.author.name not in PLANNING_AUTHORS:
         return
 
@@ -54,9 +62,12 @@ async def on_message(message: discord.Message) -> None:
     now = time.time()
 
     await clear_previous_messages(message)
-    save_schedule([])
-
-    schedule: list[dict] = []
+    # On ne remplace que le planning de ce salon (l'autre serveur garde le sien)
+    schedule = [
+        entry for entry in load_schedule()
+        if entry["channel_id"] != message.channel.id
+    ]
+    save_schedule(schedule)
 
     for event_id, format_type, timestamp in matches:
         event_timestamp = int(timestamp)

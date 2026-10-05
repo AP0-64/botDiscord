@@ -6,7 +6,7 @@ from discord.ext import tasks
 
 from .client import botsq
 from .config import (
-    LOUNGE_PING_CHANNEL_ID,
+    BOT_CHANNEL_IDS,
     LOUNGE_PING_TIMES,
     LOUNGE_ROLE_NAME,
     REMINDER_BEFORE,
@@ -104,13 +104,19 @@ async def process_active_polls() -> None:
 
 @tasks.loop(time=LOUNGE_PING_TIMES)
 async def ping_lounge() -> None:
-    """Tous les jours à 9h et 16h : ping du rôle Lounge dans le salon."""
-    channel = botsq.get_channel(LOUNGE_PING_CHANNEL_ID)
+    """Tous les jours à 9h et 16h : ping du rôle Lounge dans chaque salon du bot."""
+    for channel_id in BOT_CHANNEL_IDS:
+        await send_lounge_ping(channel_id)
+
+
+async def send_lounge_ping(channel_id: int) -> None:
+    """Mentionne le rôle Lounge (ou écrit "@Lounge" si le rôle n'existe pas)."""
+    channel = botsq.get_channel(channel_id)
     if channel is None:
         try:
-            channel = await botsq.fetch_channel(LOUNGE_PING_CHANNEL_ID)
+            channel = await botsq.fetch_channel(channel_id)
         except discord.HTTPException as e:
-            print(f"Salon du ping Lounge introuvable : {e}")
+            print(f"Salon du ping Lounge introuvable (channel_id={channel_id}) : {e}")
             return
     if not isinstance(channel, discord.TextChannel):
         return
@@ -124,4 +130,4 @@ async def ping_lounge() -> None:
             allowed_mentions=discord.AllowedMentions(roles=True),
         )
     except discord.HTTPException as e:
-        print(f"Impossible d'envoyer le ping Lounge : {e}")
+        print(f"Impossible d'envoyer le ping Lounge (channel_id={channel_id}) : {e}")
