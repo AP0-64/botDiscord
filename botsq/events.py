@@ -18,13 +18,13 @@ from .storage import load_schedule, save_schedule
 
 
 async def clear_previous_messages(message: discord.Message) -> None:
-    """Supprime tout ce qui précède le message dans le salon."""
+    """Supprime tout ce qui précède le message dans le salon, sauf les messages épinglés."""
     channel = message.channel
     if not isinstance(channel, discord.TextChannel):
         return
 
     try:
-        await channel.purge(before=message, limit=None)
+        await channel.purge(before=message, limit=None, check=lambda m: not m.pinned)
     except (discord.Forbidden, discord.HTTPException) as e:
         print(f"Impossible de vider le salon : {e}")
 

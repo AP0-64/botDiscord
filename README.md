@@ -26,7 +26,7 @@ python3 main.py
 1. **Planning** : `ap0_64` ou le salon d'annonces suivi `MK8DX 150cc Lounge #sq-schedule` poste, dans un des salons du bot, un message avec des lignes du type
    `` `#12` **3v3:** <t:TIMESTAMP:F> - <t:TIMESTAMP:R> ``
 
-   - Tous les messages postés **avant** le planning sont supprimés (anciens sondages et pings compris). Le planning lui-même reste.
+   - Tous les messages postés **avant** le planning sont supprimés (anciens sondages et pings compris), sauf les messages épinglés. Le planning lui-même reste.
    - Le nouveau planning remplace le précédent **de ce salon** (l'autre serveur garde le sien).
    - Les events passés sont ignorés. Un event dans moins de 24h a son sondage posté tout de suite.
    - Un autre message (« ok », etc.) ne déclenche rien.
