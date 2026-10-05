@@ -1,20 +1,21 @@
 """Événements Discord : démarrage, planning posté, votes."""
-import time
-
 import discord
 
 from .client import botsq
 from .config import (
     BOT_CHANNEL_IDS,
     CAN_EMOJI,
-    PLANNING_AUTHORS,
-    POLL_LINE_PATTERN,
-    SECONDS_BEFORE,
 )
 from .lobby import sync_lobby
-from .polls import create_poll, get_poll_message, hydrate_votes, render_embed
-from .scheduler import check_active_polls, check_scheduled_polls, ping_lounge
-from .storage import load_schedule, save_schedule
+from .polls import (
+    get_poll_message,
+    hydrate_votes,
+    render_embed,
+    resolve_channel,
+    vote_state,
+)
+from .scheduler import check_channels, ping_lounge, process_channel
+from .state import channel_lock, planning_events, read_channel
 
 
 async def clear_previous_messages(message: discord.Message) -> None:
@@ -29,14 +30,29 @@ async def clear_previous_messages(message: discord.Message) -> None:
         print(f"Impossible de vider le salon : {e}")
 
 
+async def catch_up_plannings() -> None:
+    """Au démarrage : vide le salon si un planning a été posté pendant que le bot était éteint."""
+    for channel_id in BOT_CHANNEL_IDS:
+        channel = await resolve_channel(channel_id)
+        if not isinstance(channel, discord.TextChannel):
+            continue
+        async with channel_lock(channel_id):
+            try:
+                planning, _ = await read_channel(channel)
+            except discord.HTTPException as e:
+                print(f"Impossible de relire le salon {channel_id} : {e}")
+                continue
+            if planning is not None:
+                await clear_previous_messages(planning)
+
+
 @botsq.event
 async def on_ready() -> None:
     """Démarre les boucles de fond une fois le bot connecté."""
     print("bot SQ prêt")
-    if not check_scheduled_polls.is_running():
-        check_scheduled_polls.start()
-    if not check_active_polls.is_running():
-        check_active_polls.start()
+    await catch_up_plannings()
+    if not check_channels.is_running():
+        check_channels.start()
     if not ping_lounge.is_running():
         ping_lounge.start()
 
@@ -48,43 +64,20 @@ async def on_message(message: discord.Message) -> None:
         return
     if message.channel.id not in BOT_CHANNEL_IDS:
         return
-    if message.author.name not in PLANNING_AUTHORS:
+    if not isinstance(message.channel, discord.TextChannel):
         return
 
     # Seul un message de planning déclenche quelque chose (un simple "ok" est ignoré)
-    matches = POLL_LINE_PATTERN.findall(message.content)
-    if not matches:
+    if not planning_events(message):
         return
 
-    now = time.time()
-
-    await clear_previous_messages(message)
-    # On ne remplace que le planning de ce salon (l'autre serveur garde le sien)
-    schedule = [
-        entry for entry in load_schedule()
-        if entry["channel_id"] != message.channel.id
-    ]
-    save_schedule(schedule)
-
-    for event_id, format_type, timestamp in matches:
-        event_timestamp = int(timestamp)
-        if event_timestamp <= now:
-            continue
-
-        post_at = event_timestamp - SECONDS_BEFORE
-
-        if post_at <= now:
-            await create_poll(message.channel, event_id, format_type, timestamp)
-        else:
-            schedule.append({
-                "event_id": event_id,
-                "format_type": format_type,
-                "timestamp": timestamp,
-                "channel_id": message.channel.id,
-                "post_at": post_at,
-            })
-
-    save_schedule(schedule)
+    async with channel_lock(message.channel.id):
+        await clear_previous_messages(message)
+        # Le planning est relu dans le salon : les events dans moins de 24h ont leur sondage
+        try:
+            await process_channel(message.channel)
+        except discord.HTTPException as e:
+            print(f"Erreur HTTP sur le salon {message.channel.id} : {e}")
 
 
 @botsq.event
@@ -94,6 +87,9 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent) -> None:
     if message is None:
         return
 
+    # Sondage pas encore en cache (redémarrage) : les votes sont relus depuis les
+    # réactions, qui contiennent déjà celle-ci. Il faut quand même tout répercuter.
+    fresh = message.id not in vote_state
     state = await hydrate_votes(message)
     emoji = str(payload.emoji)
     if emoji not in state:
@@ -102,7 +98,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent) -> None:
     user_id = payload.user_id
     member = payload.member
     display_name = member.display_name if member else str(payload.user_id)
-    changed = False
+    changed = fresh
     was_can = user_id in state.get(CAN_EMOJI, {})
 
     for other_emoji, users in state.items():
@@ -134,9 +130,14 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent) -> Non
     if message is None:
         return
 
+    # Même cas qu'à l'ajout : relu après un redémarrage, le vote est déjà absent
+    fresh = message.id not in vote_state
     state = await hydrate_votes(message)
     emoji = str(payload.emoji)
-    if emoji in state and state[emoji].pop(payload.user_id, None) is not None:
+    if emoji not in state:
+        return
+    removed = state[emoji].pop(payload.user_id, None) is not None
+    if removed or fresh:
         await render_embed(message, state)
         if emoji == CAN_EMOJI:
             await sync_lobby(message, payload.user_id, False)

@@ -46,7 +46,12 @@ python3 main.py
 5. **Ping Lounge** : tous les jours à 9h et 16h (heure de Paris), le bot écrit `@Lounge` dans chacun de ses salons.
    Si le serveur a un rôle `Lounge`, il est vraiment mentionné (notification). Sinon c'est du simple texte.
 
-Le suivi est enregistré dans `scheduled_polls.json` et `active_polls.json`, donc un redémarrage du bot ne fait rien perdre.
+Rien n'est stocké sur disque : le bot relit ses salons chaque minute.
+- les prochains sondages viennent du **dernier planning** du salon ;
+- un sondage déjà publié (embed `… (ID: #12)`) n'est jamais reposté ;
+- les lobbies sont retrouvés par leur nom (`… - #12 - Lobby`).
+
+Un redémarrage ne fait donc rien perdre. Si un planning a été posté pendant que le bot était éteint, le salon est vidé au démarrage et les sondages dus sont publiés.
 
 ## Permissions Discord
 
@@ -59,7 +64,7 @@ Le suivi est enregistré dans `scheduled_polls.json` et `active_polls.json`, don
 | Voir les salons | Voir les messages et réactions |
 | Envoyer des messages | Poster les sondages |
 | Intégrer des liens | Afficher l'embed du sondage |
-| Voir les anciens messages | Retrouver les sondages après un redémarrage |
+| Voir les anciens messages | Relire le planning et les sondages du salon |
 | Ajouter des réactions | Mettre ✅ ❓ ❌ |
 | Gérer les messages | Retirer l'ancien vote quand un joueur change d'avis, vider le salon à chaque planning |
 | Créer des fils privés | Créer le lobby |
@@ -74,6 +79,7 @@ Les réglages se trouvent dans [botsq/config.py](botsq/config.py) :
 | Variable | Défaut | Rôle |
 | --- | --- | --- |
 | `SECONDS_BEFORE` | 24h | Publication du sondage |
+| `HISTORY_LIMIT` | 200 | Messages relus pour retrouver le planning et les sondages |
 | `REMINDER_BEFORE` | 1h | Ouverture du lobby |
 | `THREADS_LIFETIME` | 4h | Suppression du lobby après le début de l'event |
 | `REGISTRATION_URL` | — | Lien du salon d'inscription des équipes |
@@ -90,7 +96,7 @@ Les réglages se trouvent dans [botsq/config.py](botsq/config.py) :
 | [botsq/\_\_main\_\_.py](botsq/__main__.py) | Charge le token et démarre le client |
 | [botsq/config.py](botsq/config.py) | Réglages |
 | [botsq/client.py](botsq/client.py) | Client Discord partagé |
-| [botsq/storage.py](botsq/storage.py) | Lecture/écriture des JSON de suivi |
+| [botsq/state.py](botsq/state.py) | Relecture de l'état sur Discord (planning, sondages, lobbies) |
 | [botsq/polls.py](botsq/polls.py) | Sondages : embed, votes, création |
 | [botsq/lobby.py](botsq/lobby.py) | Lobby : création, synchro des votes, suppression |
 | [botsq/scheduler.py](botsq/scheduler.py) | Boucles de fond (H-24h, H-1h, H+4h, ping Lounge) |

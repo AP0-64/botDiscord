@@ -3,7 +3,7 @@ import discord
 
 from .client import botsq
 from .config import CAN_EMOJI, POLL_OPTIONS
-from .storage import load_active_polls, save_active_polls
+from .state import Event, poll_event
 
 # État des votes en mémoire : message_id -> emoji -> {user_id: display_name}
 vote_state: dict[int, dict[str, dict[int, str]]] = {}
@@ -70,14 +70,12 @@ async def get_can_ids(message: discord.Message) -> list[int]:
 
 async def create_poll(
     channel: discord.abc.Messageable,
-    event_id: str,
-    format_type: str,
-    timestamp: str,
-) -> None:
+    event: Event,
+) -> discord.Message:
     """Crée le message de sondage pour un event donné."""
-    time_str = f"<t:{timestamp}:F> - <t:{timestamp}:R>"
+    time_str = f"<t:{event.timestamp}:F> - <t:{event.timestamp}:R>"
     embed = discord.Embed(
-        title=f"{format_type} (ID: #{event_id})",
+        title=f"{event.format_type} (ID: #{event.event_id})",
         description=build_description(time_str),
         color=0x2b2d31
     )
@@ -86,18 +84,7 @@ async def create_poll(
 
     for emoji, _ in POLL_OPTIONS:
         await poll_msg.add_reaction(emoji)
-
-    active_polls = load_active_polls()
-    active_polls.append({
-        "message_id": poll_msg.id,
-        "channel_id": poll_msg.channel.id,
-        "event_id": event_id,
-        "format_type": format_type,
-        "timestamp": int(timestamp),
-        "reminded": False,
-        "lobby_thread_id": None,
-    })
-    save_active_polls(active_polls)
+    return poll_msg
 
 
 async def get_poll_message(
@@ -116,8 +103,7 @@ async def get_poll_message(
     except discord.NotFound:
         return None
 
-    title = message.embeds[0].title if message.embeds else None
-    if message.author != botsq.user or not title or "(ID: #" not in title:
+    if poll_event(message) is None:
         return None
 
     return message
@@ -136,20 +122,3 @@ async def resolve_channel(channel_id: int):
         print(f"Erreur HTTP en récupérant le salon : {e}")
     return None
 
-
-async def fetch_poll_message(entry: dict) -> discord.Message | None:
-    """Retrouve le message d'un sondage suivi dans active_polls.json."""
-    channel = botsq.get_channel(entry["channel_id"])
-    if channel is None:
-        try:
-            channel = await botsq.fetch_channel(entry["channel_id"])
-        except discord.HTTPException as e:
-            print(f"Salon du sondage #{entry['event_id']} introuvable : {e}")
-            return None
-    if not isinstance(channel, discord.TextChannel):
-        return None
-    try:
-        return await channel.fetch_message(entry["message_id"])
-    except discord.HTTPException as e:
-        print(f"Sondage #{entry['event_id']} introuvable : {e}")
-        return None

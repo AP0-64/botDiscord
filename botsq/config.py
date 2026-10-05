@@ -1,11 +1,7 @@
 """Réglages du bot SQ."""
 import datetime
 import re
-from pathlib import Path
 from zoneinfo import ZoneInfo
-
-# Dossier racine du projet (où sont stockés les fichiers JSON)
-ROOT_DIR = Path(__file__).resolve().parent.parent
 
 # Seuls ces comptes peuvent poster un planning (nom d'utilisateur, pas le pseudo).
 # "MK8DX 150cc Lounge #sq-schedule" est le webhook du salon d'annonces suivi.
@@ -24,11 +20,10 @@ POLL_OPTIONS = [
 ]
 CAN_EMOJI = "✅"
 
-SCHEDULE_FILE = ROOT_DIR / "scheduled_polls.json"
-SECONDS_BEFORE = 24 * 3600  # Publication du sondage
+# Nombre max de messages relus pour retrouver le planning et les sondages du salon
+HISTORY_LIMIT = 200
 
-# Sondages publiés, suivis pour l'ouverture du lobby (H-1) et sa suppression (H+4h)
-ACTIVE_POLLS_FILE = ROOT_DIR / "active_polls.json"
+SECONDS_BEFORE = 24 * 3600  # Publication du sondage
 REMINDER_BEFORE = 3600  # Ouverture du lobby
 THREADS_LIFETIME = 4 * 3600  # Lobby supprimé 4h après le début de l'event
 
