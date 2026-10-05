@@ -86,10 +86,3 @@ Les réglages se trouvent dans [botsq/config.py](botsq/config.py) :
 | [botsq/lobby.py](botsq/lobby.py) | Lobby : création, synchro des votes, suppression |
 | [botsq/scheduler.py](botsq/scheduler.py) | Boucles de fond (H-24h, H-1h, H+4h) |
 | [botsq/events.py](botsq/events.py) | Handlers Discord (planning, réactions) |
-
-## Vérifier le code
-
-```bash
-pip install pyright
-pyright botsq
-```
