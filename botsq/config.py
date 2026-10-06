@@ -27,7 +27,7 @@ SECONDS_BEFORE = 24 * 3600  # Publication du sondage
 REMINDER_BEFORE = 3600  # Ouverture du lobby
 THREADS_LIFETIME = 4 * 3600  # Lobby supprimé 4h après le début de l'event
 
-# Salon où les équipes s'inscrivent (autre serveur)
+# Salon où les squads s'inscrivent (autre serveur)
 REGISTRATION_URL = "https://discord.com/channels/445404006177570829/772517883107475516"
 
 # Salons où le bot travaille (un par serveur) : sondages, lobbies et ping Lounge

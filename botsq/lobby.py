@@ -53,13 +53,13 @@ async def open_lobby(event: Event, message: discord.Message) -> bool:
     size_match = re.search(r"(\d+)v\d+", event.format_type, re.IGNORECASE)
     teams_of = f"de **{size_match.group(1)}** " if size_match else ""
     text += (
-        f"\nDiscutez ici pour former vos équipes {teams_of}puis inscrivez-les ici : "
+        f"\nDiscutez ici pour former vos squads {teams_of}puis inscrivez-les ici : "
         f"{REGISTRATION_URL}\n avec la commande "
         f"!c <@player2> <@player3>... (vous êtes le player 1)\n"
         f"Puis les autres membres de la squad doivent confirmer "
         f"leur participation avec la commande !c.\n"
 
-        f"Un fil sera créé là-bas pour chaque équipe inscrite.\n"
+        f"Un fil sera créé là-bas pour chaque squad inscrite.\n"
         f"Ce fil sera automatiquement supprimé à <t:{ts + THREADS_LIFETIME}:t> "
         f"({THREADS_LIFETIME // 3600}h après le début de l'event)."
     )

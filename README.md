@@ -1,6 +1,6 @@
 # Bot SQ
 
-Bot Discord qui organise les events : il poste un sondage de dispo, puis ouvre un lobby privé où les joueurs dispo s'organisent en équipes.
+Bot Discord qui organise les events : il poste un sondage de dispo, puis ouvre un lobby privé où les joueurs dispo s'organisent en squads.
 
 Il tourne dans 2 salons, sur 2 serveurs différents (`BOT_CHANNEL_IDS`). Chaque salon a son propre planning, ses sondages et ses lobbies.
 
@@ -35,9 +35,9 @@ python3 main.py
    Un seul vote par joueur, et la liste des votants se met à jour en direct.
 
 3. **H-1h : lobby**. Un fil privé `… - #12 - Lobby` est créé avec tous les ✅, qui y sont pingés.
-   Les joueurs y discutent pour former leurs équipes, puis les inscrivent sur le
+   Les joueurs y discutent pour former leurs squads, puis les inscrivent sur le
    [salon d'inscription](https://discord.com/channels/445404006177570829/772517883107475516)
-   (autre serveur), où un fil est créé pour chaque équipe.
+   (autre serveur), où un fil est créé pour chaque squad.
 
    Un joueur qui vote ✅ plus tard est ajouté au lobby, et celui qui retire son ✅ en est retiré.
 
@@ -83,7 +83,7 @@ Les réglages se trouvent dans [botsq/config.py](botsq/config.py) :
 | `HISTORY_LIMIT` | 200 | Messages relus pour retrouver le planning et les sondages |
 | `REMINDER_BEFORE` | 1h | Ouverture du lobby |
 | `THREADS_LIFETIME` | 4h | Suppression du lobby après le début de l'event |
-| `REGISTRATION_URL` | — | Lien du salon d'inscription des équipes |
+| `REGISTRATION_URL` | — | Lien du salon d'inscription des squads |
 | `BOT_CHANNEL_IDS` | 2 salons (un par serveur) | Seuls salons où le bot lit les plannings et écrit |
 | `LOUNGE_PING_TIMES` | 9h et 16h (Paris) | Heures du ping `@Lounge` |
 | `LOUNGE_ROLE_NAME` | `@Lounge` | Nom du rôle pingé |
