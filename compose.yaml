@@ -1,0 +1,15 @@
+services:
+  botsq:
+    build: .
+    image: botsq:latest
+    container_name: botsq
+    restart: unless-stopped        # relance auto après crash ou redémarrage du NAS
+    volumes:
+      - ./.env:/app/.env:ro        # token Discord, jamais copié dans l'image
+    environment:
+      TZ: Europe/Paris
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
