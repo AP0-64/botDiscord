@@ -86,6 +86,6 @@ WAR_POLLS_TIME = datetime.time(hour=0, tzinfo=PARIS)
 WAR_REMINDERS = {
     datetime.time(hour=0, minute=5, tzinfo=PARIS): "",
     datetime.time(hour=9, tzinfo=PARIS): "oubliez pas de voter",
-    datetime.time(hour=13, tzinfo=PARIS): "oubliez pas de mettre vos dispo",
+    datetime.time(hour=13, tzinfo=PARIS): "oubliez pas de mettre vos dispos",
 }
 WAR_MISSING_TIME = datetime.time(hour=17, tzinfo=PARIS)
