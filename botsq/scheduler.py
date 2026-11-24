@@ -14,7 +14,7 @@ from .config import (
     THREADS_LIFETIME,
 )
 from .lobby import delete_lobby, open_lobby
-from .polls import create_poll, resolve_channel
+from .polls import create_poll, delete_poll, resolve_channel
 from .state import (
     channel_lock,
     find_lobbies,
@@ -26,7 +26,7 @@ from .state import (
 
 @tasks.loop(minutes=1)
 async def check_channels() -> None:
-    """H-24h : sondage. H-1h : lobby. H+4h : suppression du lobby."""
+    """H-24h : sondage. H-1h : lobby. H+4h : suppression du lobby et du sondage."""
     for channel_id in BOT_CHANNEL_IDS:
         channel = await resolve_channel(channel_id)
         if not isinstance(channel, discord.TextChannel):
@@ -65,6 +65,11 @@ async def process_channel(channel: discord.TextChannel) -> None:
         timestamp = await lobby_timestamp(lobby)
         if timestamp is not None and now >= timestamp + THREADS_LIFETIME:
             await delete_lobby(lobby)
+
+    # H+4h : suppression du sondage, devenu inutile
+    for message, event in polls.values():
+        if now >= event.timestamp + THREADS_LIFETIME:
+            await delete_poll(message)
 
 
 @tasks.loop(time=LOUNGE_PING_TIMES)

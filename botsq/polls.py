@@ -87,6 +87,17 @@ async def create_poll(
     return poll_msg
 
 
+async def delete_poll(message: discord.Message) -> None:
+    """Supprime le sondage d'un event terminé."""
+    vote_state.pop(message.id, None)
+    try:
+        await message.delete()
+    except discord.NotFound:
+        pass  # Déjà supprimé à la main
+    except discord.HTTPException as e:
+        print(f"Impossible de supprimer le sondage {message.id} : {e}")
+
+
 async def get_poll_message(
     payload: discord.RawReactionActionEvent,
 ) -> discord.Message | None:
