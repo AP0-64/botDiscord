@@ -1,4 +1,4 @@
-"""Point d'entrée pour lancer le bot SQ."""
+"""Point d'entrée pour lancer le bot Toadette."""
 from pathlib import Path
 import subprocess
 import sys
@@ -16,17 +16,17 @@ def get_python_executable() -> str:
 
 
 def main() -> None:
-    """Lancer le bot SQ"""
+    """Lancer le bot Toadette"""
 
     project_dir = Path(__file__).parent
 
-    if not (project_dir / "botsq").is_dir():
-        print(f"Package introuvable: {project_dir / 'botsq'}")
+    if not (project_dir / "bot").is_dir():
+        print(f"Package introuvable: {project_dir / 'bot'}")
         return
 
     python_exe = get_python_executable()
     try:
-        subprocess.run([python_exe, "-m", "botsq"], cwd=project_dir, check=True)
+        subprocess.run([python_exe, "-m", "bot"], cwd=project_dir, check=True)
     except KeyboardInterrupt:
         print("\nInterruption demandée. Arrêt du bot.")
 

@@ -4,4 +4,4 @@ import discord
 intents = discord.Intents.default()
 intents.message_content = True
 
-botsq = discord.Client(intents=intents)
+client = discord.Client(intents=intents)

@@ -1,4 +1,4 @@
-# Bot SQ
+# Bot Toadette
 
 Bot Discord qui organise les events : il poste un sondage de dispo, puis ouvre un lobby privé où les joueurs dispo s'organisent en squads.
 
@@ -12,7 +12,7 @@ Python 3.10+ requis.
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.exemple .env   # puis colle le token du bot dans DISCORD_TOKEN_BOTSQ
+cp .env.exemple .env   # puis colle le token du bot dans DISCORD_TOKEN_BOTTOADETTE
 ```
 
 Lancer le bot :
@@ -92,7 +92,7 @@ Si le bot démarre dans la journée, il poste les sondages manquants des wars pa
 
 ## Réglages
 
-Les réglages se trouvent dans [botsq/config.py](botsq/config.py) :
+Les réglages se trouvent dans [bot/config.py](bot/config.py) :
 
 | Variable | Défaut | Rôle |
 | --- | --- | --- |
@@ -110,13 +110,13 @@ Les réglages se trouvent dans [botsq/config.py](botsq/config.py) :
 
 | Fichier | Rôle |
 | --- | --- |
-| [main.py](main.py) | Point d'entrée (lance `python -m botsq` avec le Python du venv) |
-| [botsq/\_\_main\_\_.py](botsq/__main__.py) | Charge le token et démarre le client |
-| [botsq/config.py](botsq/config.py) | Réglages |
-| [botsq/client.py](botsq/client.py) | Client Discord partagé |
-| [botsq/state.py](botsq/state.py) | Relecture de l'état sur Discord (planning, sondages, lobbies) |
-| [botsq/polls.py](botsq/polls.py) | Sondages : embed, votes, création |
-| [botsq/lobby.py](botsq/lobby.py) | Lobby : création, synchro des votes, suppression |
-| [botsq/scheduler.py](botsq/scheduler.py) | Boucles de fond (H-24h, H-1h, H+4h, ping Lounge) |
-| [botsq/war.py](botsq/war.py) | Wars : sondages quotidiens, rappels, nettoyage de 23h30 |
-| [botsq/events.py](botsq/events.py) | Handlers Discord (planning, purge du salon, réactions) |
+| [main.py](main.py) | Point d'entrée (lance `python -m bot` avec le Python du venv) |
+| [bot/\_\_main\_\_.py](bot/__main__.py) | Charge le token et démarre le client |
+| [bot/config.py](bot/config.py) | Réglages |
+| [bot/client.py](bot/client.py) | Client Discord partagé |
+| [bot/state.py](bot/state.py) | Relecture de l'état sur Discord (planning, sondages, lobbies) |
+| [bot/polls.py](bot/polls.py) | Sondages : embed, votes, création |
+| [bot/lobby.py](bot/lobby.py) | Lobby : création, synchro des votes, suppression |
+| [bot/scheduler.py](bot/scheduler.py) | Boucles de fond (H-24h, H-1h, H+4h, ping Lounge) |
+| [bot/war.py](bot/war.py) | Wars : sondages quotidiens, rappels, nettoyage de 23h30 |
+| [bot/events.py](bot/events.py) | Handlers Discord (planning, purge du salon, réactions) |

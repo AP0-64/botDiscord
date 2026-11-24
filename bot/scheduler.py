@@ -4,7 +4,7 @@ import time
 import discord
 from discord.ext import tasks
 
-from .client import botsq
+from .client import client
 from .config import (
     BOT_CHANNEL_IDS,
     LOUNGE_PING_TIMES,
@@ -81,10 +81,10 @@ async def ping_lounge() -> None:
 
 async def send_lounge_ping(channel_id: int) -> None:
     """Mentionne le rôle Lounge (ou écrit "@Lounge" si le rôle n'existe pas)."""
-    channel = botsq.get_channel(channel_id)
+    channel = client.get_channel(channel_id)
     if channel is None:
         try:
-            channel = await botsq.fetch_channel(channel_id)
+            channel = await client.fetch_channel(channel_id)
         except discord.HTTPException as e:
             print(f"Salon du ping Lounge introuvable (channel_id={channel_id}) : {e}")
             return

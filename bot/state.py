@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import discord
 
-from .client import botsq
+from .client import client
 from .config import HISTORY_LIMIT, PLANNING_AUTHORS, POLL_LINE_PATTERN, REMINDER_BEFORE
 
 POLL_TITLE_PATTERN = re.compile(r"^(.*) \(ID: #(\d+)\)$")
@@ -48,7 +48,7 @@ def planning_events(message: discord.Message) -> list[Event]:
 
 def poll_event(message: discord.Message) -> Event | None:
     """Event d'un sondage publié par le bot (None si ce n'est pas un sondage)."""
-    if message.author != botsq.user or not message.embeds:
+    if message.author != client.user or not message.embeds:
         return None
     embed = message.embeds[0]
     title = POLL_TITLE_PATTERN.match(embed.title or "")
@@ -105,7 +105,7 @@ async def lobby_timestamp(thread: discord.Thread) -> int | None:
     try:
         async for message in thread.history(limit=100, oldest_first=True):
             match = LOBBY_TIME_PATTERN.search(message.content)
-            if message.author == botsq.user and match:
+            if message.author == client.user and match:
                 timestamp = int(match.group(1))
                 break
     except discord.HTTPException:

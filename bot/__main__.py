@@ -1,24 +1,24 @@
-"""Lancement du bot SQ : python -m botsq"""
+"""Lancement du bot Toadette : python -m bot"""
 import os
 
 from dotenv import load_dotenv
 
 # Import nécessaire : enregistre les handlers sur le client
 from . import events  # noqa: F401  # pylint: disable=unused-import
-from .client import botsq
+from .client import client
 
 
 def run() -> None:
-    """Lancer le bot SQ"""
+    """Lancer le bot Toadette"""
     load_dotenv()
 
-    token = os.getenv("DISCORD_TOKEN_BOTSQ")
+    token = os.getenv("DISCORD_TOKEN_BOTTOADETTE")
     if not token:
         raise RuntimeError(
-            "DISCORD_TOKEN_BOTSQ manquant dans le fichier .env "
+            "DISCORD_TOKEN_BOTTOADETTE manquant dans le fichier .env "
         )
 
-    botsq.run(token)
+    client.run(token)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ import time
 import discord
 from discord.ext import tasks
 
-from .client import botsq
+from .client import client
 from .config import (
     PARIS,
     WAR_CAN_EMOJIS,
@@ -46,7 +46,7 @@ war_votes: dict[int, Votes] = {}
 
 def war_timestamp(message: discord.Message) -> int | None:
     """Heure d'une war si le message est un de nos sondages, sinon None."""
-    if message.author != botsq.user or not message.embeds:
+    if message.author != client.user or not message.embeds:
         return None
     embed = message.embeds[0]
     match = WAR_TIME_PATTERN.search(embed.description or "")
@@ -145,7 +145,7 @@ async def hydrate_war_votes(message: discord.Message) -> Votes:
         emoji = str(reaction.emoji)
         if emoji in VOTE_EMOJIS:
             async for user in reaction.users():
-                if botsq.user and user.id != botsq.user.id:
+                if client.user and user.id != client.user.id:
                     votes[emoji][user.id] = user.display_name
 
     dropped = dropped_names(message)
@@ -173,7 +173,7 @@ async def fetch_war_poll(
     payload: discord.RawReactionActionEvent,
 ) -> tuple[discord.Message, int] | None:
     """Sondage de war visé par une réaction (et heure de la war), sinon None."""
-    if botsq.user and payload.user_id == botsq.user.id:
+    if client.user and payload.user_id == client.user.id:
         return None
     channel = await resolve_channel(payload.channel_id)
     if not isinstance(channel, discord.TextChannel):

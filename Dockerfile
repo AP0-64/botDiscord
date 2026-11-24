@@ -11,7 +11,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt tzdata
 
-COPY botsq/ ./botsq/
+COPY bot/ ./bot/
 
 # Le token n'est pas dans l'image : .env est monté par compose.yaml
-CMD ["python", "-m", "botsq"]
+CMD ["python", "-m", "bot"]

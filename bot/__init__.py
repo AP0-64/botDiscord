@@ -1,1 +1,1 @@
-"""Bot SQ - Organise les events : sondage de dispo puis lobby privé."""
+"""Bot Toadette - Organise les events : sondage de dispo puis lobby privé."""

@@ -1,8 +1,8 @@
 services:
-  botsq:
+  bottoadette:
     build: .
-    image: botsq:latest
-    container_name: botsq
+    image: bottoadette:latest
+    container_name: bottoadette
     restart: unless-stopped        # relance auto après crash ou redémarrage du NAS
     volumes:
       - ./.env:/app/.env:ro        # token Discord, jamais copié dans l'image

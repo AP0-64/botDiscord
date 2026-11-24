@@ -1,4 +1,4 @@
-"""Réglages du bot SQ."""
+"""Réglages du bot Toadette."""
 import datetime
 import re
 from zoneinfo import ZoneInfo

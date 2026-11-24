@@ -1,7 +1,7 @@
 """Sondages : construction de l'embed, suivi des votes et création."""
 import discord
 
-from .client import botsq
+from .client import client
 from .config import CAN_EMOJI, POLL_OPTIONS
 from .state import Event, poll_event
 
@@ -55,7 +55,7 @@ async def hydrate_votes(message: discord.Message) -> dict[str, dict[int, str]]:
         emoji = str(reaction.emoji)
         if emoji in state:
             async for user in reaction.users():
-                if botsq.user and user.id != botsq.user.id:
+                if client.user and user.id != client.user.id:
                     state[emoji][user.id] = user.display_name
 
     vote_state[message.id] = state
@@ -102,7 +102,7 @@ async def get_poll_message(
     payload: discord.RawReactionActionEvent,
 ) -> discord.Message | None:
     """Retourne le sondage visé par une réaction, ou None si ce n'en est pas un."""
-    if botsq.user and payload.user_id == botsq.user.id:
+    if client.user and payload.user_id == client.user.id:
         return None
 
     channel = await resolve_channel(payload.channel_id)
@@ -122,11 +122,11 @@ async def get_poll_message(
 
 async def resolve_channel(channel_id: int):
     """Retourne le salon depuis le cache, sinon via l'API (None en cas d'échec)."""
-    channel = botsq.get_channel(channel_id)
+    channel = client.get_channel(channel_id)
     if channel is not None:
         return channel
     try:
-        return await botsq.fetch_channel(channel_id)
+        return await client.fetch_channel(channel_id)
     except discord.NotFound:
         print(f"Salon introuvable (channel_id={channel_id}), entrée ignorée.")
     except discord.HTTPException as e:

@@ -1,7 +1,7 @@
 """Événements Discord : démarrage, planning posté, votes."""
 import discord
 
-from .client import botsq
+from .client import client
 from .config import (
     BOT_CHANNEL_IDS,
     CAN_EMOJI,
@@ -53,10 +53,10 @@ async def catch_up_plannings() -> None:
                 await clear_previous_messages(planning)
 
 
-@botsq.event
+@client.event
 async def on_ready() -> None:
     """Démarre les boucles de fond une fois le bot connecté."""
-    print("bot SQ prêt")
+    print("bot Toadette prêt")
     await catch_up_plannings()
     if not check_channels.is_running():
         check_channels.start()
@@ -67,10 +67,10 @@ async def on_ready() -> None:
     start_war_loops()
 
 
-@botsq.event
+@client.event
 async def on_message(message: discord.Message) -> None:
     """Un nouveau planning vide le salon et remplace le précédent."""
-    if message.author == botsq.user:
+    if message.author == client.user:
         return
     if message.channel.id not in BOT_CHANNEL_IDS:
         return
@@ -90,7 +90,7 @@ async def on_message(message: discord.Message) -> None:
             print(f"Erreur HTTP sur le salon {message.channel.id} : {e}")
 
 
-@botsq.event
+@client.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent) -> None:
     """Un seul vote par joueur : le nouveau remplace l'ancien."""
     if payload.channel_id in WAR_CHANNELS:
@@ -136,7 +136,7 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent) -> None:
             await sync_lobby(message, user_id, emoji == CAN_EMOJI)
 
 
-@botsq.event
+@client.event
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent) -> None:
     """Retire le vote du joueur et met à jour le sondage et le lobby."""
     if payload.channel_id in WAR_CHANNELS:

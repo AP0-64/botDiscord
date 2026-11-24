@@ -144,7 +144,7 @@ ENV/
 env.bak/
 venv.bak/
 
-# Bot SQ runtime file
+# Bot Toadette runtime file
 scheduled_polls.json
 active_polls.json
 
