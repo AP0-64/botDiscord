@@ -41,7 +41,7 @@ python3 main.py
 
    Un joueur qui vote ✅ plus tard est ajouté au lobby, et celui qui retire son ✅ en est retiré.
 
-4. **H+4h : nettoyage**. Le lobby est supprimé.
+4. **H+4h : nettoyage**. Le lobby et le sondage sont supprimés.
 
 5. **Ping Lounge** : tous les jours à 9h et 16h (heure de Paris), le bot écrit `@Lounge` dans chacun de ses salons.
    Si le serveur a un rôle `Lounge`, il est vraiment mentionné (notification). Sinon c'est du simple texte.
@@ -53,6 +53,23 @@ Rien n'est stocké sur disque : le bot relit ses salons chaque minute.
 - les lobbies sont retrouvés par leur nom (`… - #12 - Lobby`).
 
 Un redémarrage ne fait donc rien perdre. Si un planning a été posté pendant que le bot était éteint, le salon est vidé au démarrage et les sondages dus sont publiés.
+
+## Wars
+
+Indépendant des SQ, dans les salons `WAR_CHANNELS` (un par serveur). Toutes les heures sont celles de Paris.
+
+- **00h00 : sondages** des wars de 20h, 21h, 22h et 23h. Chaque sondage affiche la date et l'heure converties à l'heure de chaque membre.
+  Réactions : ✅ Can / ❕ Can sub / ❔ Not sure / ❌ Can't, un seul vote par joueur.
+  Un joueur ✅ ou ❕ qui passe à ❌ **à moins de 2h** de la war est affiché en **✖️ Dropped**.
+  S'il revote, il sort de Dropped.
+- **00h05** : mention des rôles du salon.
+- **9h** : mention des rôles + « oubliez pas de voter ».
+- **13h** : mention des rôles + « oubliez pas de mettre vos dispo ».
+- **17h** : mention des rôles + une ligne `21:00 : +x` par war à qui il manque 1 à 3 joueurs pour être 6 (✅ et ❕ comptent).
+  Les wars complètes, ou à qui il en manque 4 ou plus, n'ont pas de ligne. Si aucune war n'a de ligne, le message n'est pas envoyé.
+- **23h30 : nettoyage** des salons `WAR_PURGE_CHANNEL_IDS` (messages épinglés conservés).
+
+Si le bot démarre dans la journée, il poste les sondages manquants des wars pas encore commencées.
 
 ## Permissions Discord
 
@@ -101,4 +118,5 @@ Les réglages se trouvent dans [botsq/config.py](botsq/config.py) :
 | [botsq/polls.py](botsq/polls.py) | Sondages : embed, votes, création |
 | [botsq/lobby.py](botsq/lobby.py) | Lobby : création, synchro des votes, suppression |
 | [botsq/scheduler.py](botsq/scheduler.py) | Boucles de fond (H-24h, H-1h, H+4h, ping Lounge) |
+| [botsq/war.py](botsq/war.py) | Wars : sondages quotidiens, rappels, nettoyage de 23h30 |
 | [botsq/events.py](botsq/events.py) | Handlers Discord (planning, purge du salon, réactions) |

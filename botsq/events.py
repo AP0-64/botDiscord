@@ -5,6 +5,7 @@ from .client import botsq
 from .config import (
     BOT_CHANNEL_IDS,
     CAN_EMOJI,
+    WAR_CHANNELS,
 )
 from .lobby import sync_lobby
 from .polls import (
@@ -16,6 +17,12 @@ from .polls import (
 )
 from .scheduler import check_channels, ping_lounge, process_channel
 from .state import channel_lock, planning_events, read_channel
+from .war import (
+    on_war_reaction_add,
+    on_war_reaction_remove,
+    post_war_polls,
+    start_war_loops,
+)
 
 
 async def clear_previous_messages(message: discord.Message) -> None:
@@ -55,6 +62,9 @@ async def on_ready() -> None:
         check_channels.start()
     if not ping_lounge.is_running():
         ping_lounge.start()
+    # Sondages du jour manqués pendant que le bot était éteint
+    await post_war_polls()
+    start_war_loops()
 
 
 @botsq.event
@@ -83,6 +93,9 @@ async def on_message(message: discord.Message) -> None:
 @botsq.event
 async def on_raw_reaction_add(payload: discord.RawReactionActionEvent) -> None:
     """Un seul vote par joueur : le nouveau remplace l'ancien."""
+    if payload.channel_id in WAR_CHANNELS:
+        await on_war_reaction_add(payload)
+        return
     message = await get_poll_message(payload)
     if message is None:
         return
@@ -126,6 +139,9 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent) -> None:
 @botsq.event
 async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent) -> None:
     """Retire le vote du joueur et met à jour le sondage et le lobby."""
+    if payload.channel_id in WAR_CHANNELS:
+        await on_war_reaction_remove(payload)
+        return
     message = await get_poll_message(payload)
     if message is None:
         return
