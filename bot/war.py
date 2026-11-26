@@ -52,7 +52,8 @@ def war_timestamp(message: discord.Message) -> int | None:
         return None
     embed = message.embeds[0]
     match = WAR_TIME_PATTERN.search(embed.description or "")
-    if embed.title != WAR_TITLE or not match:
+    # "War 20" (ou "War" pour les anciens sondages)
+    if (embed.title or "").split(" ")[0] != WAR_TITLE or not match:
         return None
     return int(match.group(1))
 
@@ -76,8 +77,9 @@ def empty_votes() -> Votes:
 
 async def create_war_poll(channel: discord.TextChannel, timestamp: int) -> None:
     """Poste le sondage d'une war et ses réactions."""
+    hour = datetime.datetime.fromtimestamp(timestamp, PARIS).hour
     embed = discord.Embed(
-        title=WAR_TITLE,
+        title=f"{WAR_TITLE} {hour}",
         description=build_description(timestamp),
         color=WAR_COLOR,
     )
