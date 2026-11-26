@@ -88,4 +88,12 @@ WAR_REMINDERS = {
     datetime.time(hour=9, tzinfo=PARIS): "oubliez pas de voter",
     datetime.time(hour=13, tzinfo=PARIS): "oubliez pas de mettre vos dispos",
 }
+# Salons où les rappels sont aussi écrits en anglais
+WAR_ENGLISH_CHANNEL_IDS = {
+    1378729909224210538,  # https://discord.com/channels/1374645694618665060/1378729909224210538
+}
+WAR_REMINDERS_EN = {
+    "oubliez pas de voter": "don't forget to vote",
+    "oubliez pas de mettre vos dispos": "don't forget to set your availability",
+}
 WAR_MISSING_TIME = datetime.time(hour=17, tzinfo=PARIS)

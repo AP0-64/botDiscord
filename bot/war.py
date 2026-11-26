@@ -19,6 +19,7 @@ from .config import (
     WAR_COLOR,
     WAR_DROP_WINDOW,
     WAR_DROPPED,
+    WAR_ENGLISH_CHANNEL_IDS,
     WAR_HOURS,
     WAR_MAX_MISSING,
     WAR_MISSING_TIME,
@@ -27,6 +28,7 @@ from .config import (
     WAR_PURGE_CHANNEL_IDS,
     WAR_PURGE_TIME,
     WAR_REMINDERS,
+    WAR_REMINDERS_EN,
     WAR_TEAM_SIZE,
     WAR_TITLE,
 )
@@ -310,7 +312,12 @@ async def war_reminders_loop() -> None:
     )
     text = WAR_REMINDERS[reminder]
     for channel_id in WAR_CHANNELS:
-        await send_to_war_channel(channel_id, f"{role_mentions(channel_id)} {text}".strip())
+        channel_text = text
+        if text and channel_id in WAR_ENGLISH_CHANNEL_IDS:
+            channel_text = f"{text} / {WAR_REMINDERS_EN[text]}"
+        await send_to_war_channel(
+            channel_id, f"{role_mentions(channel_id)} {channel_text}".strip()
+        )
 
 
 @tasks.loop(time=WAR_MISSING_TIME)
