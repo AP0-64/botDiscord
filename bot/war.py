@@ -24,6 +24,7 @@ from .config import (
     WAR_MAX_MISSING,
     WAR_MISSING_TIME,
     WAR_OPTIONS,
+    WAR_PLAYER_EMOJI,
     WAR_POLLS_TIME,
     WAR_PURGE_CHANNEL_IDS,
     WAR_PURGE_TIME,
@@ -290,7 +291,7 @@ async def missing_lines(channel_id: int) -> list[str]:
             if message is None:
                 continue
             votes = await hydrate_war_votes(message)
-            available = sum(len(votes[e]) for e in WAR_CAN_EMOJIS)
+            available = len(votes[WAR_PLAYER_EMOJI])
             missing = WAR_TEAM_SIZE - available
             if 0 < missing <= WAR_MAX_MISSING:
                 lines.append(f"<t:{timestamp}:t> : +{missing}")

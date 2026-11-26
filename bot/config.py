@@ -73,7 +73,8 @@ WAR_OPTIONS = [
     ("❔", "Not sure"),
     ("❌", "Can't"),
 ]
-WAR_CAN_EMOJIS = ("✅", "❕")  # Comptent comme dispo
+WAR_CAN_EMOJIS = ("✅", "❕")  # Comptent comme dispo (pour les Dropped)
+WAR_PLAYER_EMOJI = "✅"  # Seuls les Can comptent dans les joueurs du rappel de 17h
 WAR_CANT_EMOJI = "❌"
 WAR_DROPPED = ("✖️", "Dropped")  # Pas une réaction : attribué par le bot
 WAR_DROP_WINDOW = 2 * 3600  # Can/Can sub -> Can't à moins de 2h = Dropped
